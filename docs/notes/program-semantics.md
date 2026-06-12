@@ -35,7 +35,7 @@ Reproduce with `pnpm setup:devnet && pnpm demo:lifecycle` and
 - `resumeSubscription` clears `expiresAtTs` back to `0` (active). Verified
   cancel → resume round-trip in one period.
 - **Only the subscriber can cancel or resume.** The merchant cannot terminate
-  an on-chain subscription; merchant-side "cancellation" in solbill means
+  an on-chain subscription; merchant-side "cancellation" in kairos means
   *stop charging and flag the subscriber* (dunning `delinquent` state), plus
   optionally sunsetting the plan.
 
@@ -57,7 +57,7 @@ Key operational findings:
   failed at `Failed to send transaction (preflight)` — the billing worker can
   simulate-then-send and classify failures for free. Failed charge attempts
   therefore leave *no on-chain trace*; recording them is strictly an off-chain
-  (solbill database) responsibility.
+  (kairos database) responsibility.
 
 ## SubscriptionAuthority
 
@@ -75,8 +75,8 @@ Key operational findings:
 
 ## Service-puller architecture — validated
 
-The whole solbill billing model was exercised live: a **third-party keypair**
-(the future solbill billing worker key) that is *not* the plan owner, listed in
+The whole kairos billing model was exercised live: a **third-party keypair**
+(the future kairos billing worker key) that is *not* the plan owner, listed in
 the plan's mutable `pullers` array (max 4), successfully executed
 `transferSubscription`. Funds can only land in ATAs owned by addresses in the
 plan's **immutable** `destinations` array (max 4) — a compromised puller key
@@ -94,7 +94,7 @@ cannot redirect funds, only trigger charges within period caps.
 - **No event decoders are exported** (events are absent from the Codama IDL).
   The Phase 1 indexer must decode the self-CPI event wire format
   (`[8-byte tag 0x1d9acb512ea545e4 LE][1-byte kind][packed payload]`) itself —
-  constants live in `@solbill/core` (`src/program.ts`).
+  constants live in `@kairos/core` (`src/program.ts`).
 - The public devnet RPC (`api.devnet.solana.com`) rate-limits bursts (HTTP
   429); scripts use bounded retry with backoff. Use a free Helius endpoint in
   `.env` for smoother runs.
@@ -109,4 +109,4 @@ cannot redirect funds, only trigger charges within period caps.
    scheduler charges across a real period boundary.
 4. TransferHook mints: rejected by the deployed program (error 121) but support
    exists in the repo's HEAD — re-check on the program's next release before
-   relaxing solbill's mint validation.
+   relaxing kairos's mint validation.

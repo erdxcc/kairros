@@ -1,6 +1,6 @@
 /**
  * End-to-end lifecycle smoke test against the live Subscriptions program on
- * devnet. Exercises the exact flow solbill automates for merchants:
+ * devnet. Exercises the exact flow kairos automates for merchants:
  *
  *   1. merchant   createPlan           (5 devUSDC / 1 hour period, puller allowed)
  *   2. subscriber initSubscriptionAuthority   (once per user+mint)
@@ -86,7 +86,7 @@ async function main() {
     console.log('Actors:');
     console.log(`  merchant   ${merchantKp.address}`);
     console.log(`  subscriber ${subscriberKp.address}`);
-    console.log(`  puller     ${pullerKp.address} (solbill's future billing key)`);
+    console.log(`  puller     ${pullerKp.address} (kairos's future billing key)`);
     console.log(`  mint       ${env.mint} (devUSDC, ${env.decimals} decimals)`);
 
     // 1. Create plan ---------------------------------------------------------

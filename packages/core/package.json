@@ -1,5 +1,5 @@
 {
-    "name": "@solbill/core",
+    "name": "@kairos/core",
     "version": "0.0.1",
     "private": true,
     "description": "Shared layer: Subscriptions program constants, event decoders, and configuration.",

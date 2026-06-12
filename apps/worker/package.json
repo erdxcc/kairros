@@ -1,5 +1,5 @@
 {
-    "name": "@solbill/worker",
+    "name": "@kairos/worker",
     "version": "0.0.1",
     "private": true,
     "description": "Indexer + billing scheduler + webhook dispatcher. Implemented from Phase 1 onwards.",
@@ -12,7 +12,7 @@
         "dev": "tsx src/index.ts"
     },
     "dependencies": {
-        "@solbill/core": "workspace:*"
+        "@kairos/core": "workspace:*"
     },
     "devDependencies": {
         "@types/node": "^20.17.0",

@@ -1,4 +1,4 @@
-# solbill
+# kairos
 
 **Open-source merchant billing layer for the native Solana Subscriptions program.**
 
@@ -7,7 +7,7 @@ The [Solana Subscriptions & Allowances program](https://github.com/solana-progra
 subscription plans, recurring delegations, and fixed allowances. It is deliberately not a product —
 there is no dashboard, no failed-payment handling, no webhooks, no checkout.
 
-solbill is that missing product layer — what Stripe Billing provides on top of a card network:
+kairos is that missing product layer — what Stripe Billing provides on top of a card network:
 
 - 📊 **Merchant dashboard** — subscribers, MRR, churn, payment history
 - ⚙️ **Automatic billing** — a scheduler that pulls due payments via the program's `pullers` mechanism
@@ -16,7 +16,7 @@ solbill is that missing product layer — what Stripe Billing provides on top of
 - 🧩 **"Subscribe with Solana" checkout & widget** — hosted checkout and an embeddable button *(roadmap)*
 - 🔔 **Subscriber notifications** — Telegram alerts for upcoming and failed charges *(roadmap)*
 
-solbill is fully open source (MIT), self-hostable, and built to accelerate adoption of the
+kairos is fully open source (MIT), self-hostable, and built to accelerate adoption of the
 Foundation's native primitive — not to compete with it. It never wraps or forks the on-chain
 program; it is a pure client-side layer.
 

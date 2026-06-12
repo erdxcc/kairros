@@ -16,7 +16,7 @@ importers:
 
   apps/worker:
     dependencies:
-      '@solbill/core':
+      '@kairos/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:

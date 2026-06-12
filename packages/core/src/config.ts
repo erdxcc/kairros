@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 
-export interface SolbillConfig {
+export interface KairosConfig {
     cluster: 'devnet' | 'mainnet-beta';
     rpcUrl: string;
     keysDir: string;
@@ -24,7 +24,7 @@ export function findWorkspaceRoot(from: string = process.cwd()): string {
 }
 
 /** Reads configuration from the environment (.env at the workspace root). */
-export function loadConfig(): SolbillConfig {
+export function loadConfig(): KairosConfig {
     const root = findWorkspaceRoot();
     loadDotenv({ path: join(root, '.env') });
 
@@ -41,7 +41,7 @@ export function loadConfig(): SolbillConfig {
 }
 
 /** Solana Explorer link for a transaction signature, respecting the cluster. */
-export function explorerTxUrl(signature: string, cluster: SolbillConfig['cluster']): string {
+export function explorerTxUrl(signature: string, cluster: KairosConfig['cluster']): string {
     const suffix = cluster === 'devnet' ? '?cluster=devnet' : '';
     return `https://explorer.solana.com/tx/${signature}${suffix}`;
 }

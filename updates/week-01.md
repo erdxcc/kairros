@@ -1,6 +1,6 @@
 # Week 1 — Project kickoff: live lifecycle on devnet
 
-**TL;DR: solbill exists, and the full subscription lifecycle already runs
+**TL;DR: kairos exists, and the full subscription lifecycle already runs
 end-to-end against the live Subscriptions program on devnet — including a
 charge executed by a third-party "billing service" key.**
 
@@ -26,13 +26,13 @@ charge executed by a third-party "billing service" key.**
   paid period** (`expiresAt = periodStart + period`); `resume` clears it.
 - **Insufficient funds** surfaces as SPL Token error `0x1` and is caught at
   preflight — failed charges cost nothing and leave no on-chain trace, so
-  recording them is solbill's job. This is the foundation for dunning.
+  recording them is kairos's job. This is the foundation for dunning.
 - The service-puller model is validated: a key listed in the plan's mutable
   `pullers` can charge, while the **immutable `destinations`** guarantee it can
   never redirect funds.
 - The official SDK has no event decoders (events are absent from the IDL), so
   the indexer will decode the self-CPI wire format itself — constants already
-  live in `@solbill/core`.
+  live in `@kairos/core`.
 
 ## Next week
 

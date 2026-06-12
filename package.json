@@ -1,5 +1,5 @@
 {
-    "name": "solbill",
+    "name": "kairos",
     "private": true,
     "version": "0.0.1",
     "description": "Open-source merchant billing layer (dashboard, webhooks, dunning, checkout) on top of the native Solana Subscriptions program.",
@@ -14,8 +14,8 @@
         "test": "pnpm -r test",
         "lint": "biome check .",
         "lint:fix": "biome check --write .",
-        "setup:devnet": "pnpm --filter @solbill/core setup:devnet",
-        "demo:lifecycle": "pnpm --filter @solbill/core demo:lifecycle"
+        "setup:devnet": "pnpm --filter @kairos/core setup:devnet",
+        "demo:lifecycle": "pnpm --filter @kairos/core demo:lifecycle"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4"
