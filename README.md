@@ -28,7 +28,10 @@ program; it is a pure client-side layer.
 | --- | --- |
 | Devnet lifecycle smoke test | ✅ done |
 | Event indexer | ✅ done (cursor-based polling, all six events, golden-fixture tests) |
-| REST API + billing scheduler + webhooks | ⏳ planned |
+| Billing scheduler (auto-charge via puller key) | ✅ done (verified live on devnet) |
+| Webhooks (HMAC-signed, retries) | ✅ core done ([docs](./docs/webhooks.md)); delivery UI in a later milestone |
+| Reconciler (on-chain drift repair) | ✅ done |
+| REST API (SIWS auth) | 🔨 next |
 | Merchant dashboard | ⏳ planned |
 | Dunning, checkout widget, Telegram notifications | 🗺️ roadmap |
 

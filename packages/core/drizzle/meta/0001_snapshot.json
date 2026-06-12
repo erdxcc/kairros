@@ -1,0 +1,643 @@
+{
+    "id": "00786273-4762-467a-bff9-10ea9eee6bbc",
+    "prevId": "fe2d1bd5-2583-4989-83c5-af6f9c0b246b",
+    "version": "7",
+    "dialect": "postgresql",
+    "tables": {
+        "public.chain_events": {
+            "name": "chain_events",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "serial",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "signature": {
+                    "name": "signature",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "outer_ix_index": {
+                    "name": "outer_ix_index",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "inner_ix_index": {
+                    "name": "inner_ix_index",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "slot": {
+                    "name": "slot",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "block_time": {
+                    "name": "block_time",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "kind": {
+                    "name": "kind",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "payload": {
+                    "name": "payload",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "ingested_at": {
+                    "name": "ingested_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "chain_events_position_unique": {
+                    "name": "chain_events_position_unique",
+                    "columns": [
+                        {
+                            "expression": "signature",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        },
+                        {
+                            "expression": "outer_ix_index",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        },
+                        {
+                            "expression": "inner_ix_index",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.charges": {
+            "name": "charges",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "serial",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "chain_event_id": {
+                    "name": "chain_event_id",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "subscription_pda": {
+                    "name": "subscription_pda",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "plan_pda": {
+                    "name": "plan_pda",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "subscriber": {
+                    "name": "subscriber",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "mint": {
+                    "name": "mint",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "amount": {
+                    "name": "amount",
+                    "type": "numeric(20, 0)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "receiver": {
+                    "name": "receiver",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "period_start_ts": {
+                    "name": "period_start_ts",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "period_end_ts": {
+                    "name": "period_end_ts",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "status": {
+                    "name": "status",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "error_code": {
+                    "name": "error_code",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "signature": {
+                    "name": "signature",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "executed_at": {
+                    "name": "executed_at",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "charges_chain_event_unique": {
+                    "name": "charges_chain_event_unique",
+                    "columns": [
+                        {
+                            "expression": "chain_event_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.cursors": {
+            "name": "cursors",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "last_signature": {
+                    "name": "last_signature",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.outbox": {
+            "name": "outbox",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "serial",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "event_type": {
+                    "name": "event_type",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "payload": {
+                    "name": "payload",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "processed_at": {
+                    "name": "processed_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": false
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.plans": {
+            "name": "plans",
+            "schema": "",
+            "columns": {
+                "plan_pda": {
+                    "name": "plan_pda",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "owner": {
+                    "name": "owner",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "plan_id": {
+                    "name": "plan_id",
+                    "type": "numeric(20, 0)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "mint": {
+                    "name": "mint",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "amount": {
+                    "name": "amount",
+                    "type": "numeric(20, 0)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "period_hours": {
+                    "name": "period_hours",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "status": {
+                    "name": "status",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "end_ts": {
+                    "name": "end_ts",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "destinations": {
+                    "name": "destinations",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "pullers": {
+                    "name": "pullers",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "metadata_uri": {
+                    "name": "metadata_uri",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "''"
+                },
+                "created_at_chain": {
+                    "name": "created_at_chain",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "first_seen_at": {
+                    "name": "first_seen_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.subscriptions": {
+            "name": "subscriptions",
+            "schema": "",
+            "columns": {
+                "subscription_pda": {
+                    "name": "subscription_pda",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "plan_pda": {
+                    "name": "plan_pda",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "subscriber": {
+                    "name": "subscriber",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "mint": {
+                    "name": "mint",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "status": {
+                    "name": "status",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_ts": {
+                    "name": "created_ts",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "current_period_start_ts": {
+                    "name": "current_period_start_ts",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "amount_pulled_in_period": {
+                    "name": "amount_pulled_in_period",
+                    "type": "numeric(20, 0)",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'0'"
+                },
+                "expires_at_ts": {
+                    "name": "expires_at_ts",
+                    "type": "bigint",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "0"
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.webhook_deliveries": {
+            "name": "webhook_deliveries",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "serial",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "endpoint_id": {
+                    "name": "endpoint_id",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "outbox_id": {
+                    "name": "outbox_id",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "event_type": {
+                    "name": "event_type",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "status": {
+                    "name": "status",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'pending'"
+                },
+                "attempts": {
+                    "name": "attempts",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": 0
+                },
+                "next_attempt_at": {
+                    "name": "next_attempt_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "last_error": {
+                    "name": "last_error",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "response_status": {
+                    "name": "response_status",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "delivered_at": {
+                    "name": "delivered_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "webhook_deliveries_endpoint_outbox_unique": {
+                    "name": "webhook_deliveries_endpoint_outbox_unique",
+                    "columns": [
+                        {
+                            "expression": "endpoint_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        },
+                        {
+                            "expression": "outbox_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.webhook_endpoints": {
+            "name": "webhook_endpoints",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "serial",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "merchant": {
+                    "name": "merchant",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "url": {
+                    "name": "url",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "secret": {
+                    "name": "secret",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "active": {
+                    "name": "active",
+                    "type": "boolean",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        }
+    },
+    "enums": {},
+    "schemas": {},
+    "sequences": {},
+    "roles": {},
+    "policies": {},
+    "views": {},
+    "_meta": {
+        "columns": {},
+        "schemas": {},
+        "tables": {}
+    }
+}

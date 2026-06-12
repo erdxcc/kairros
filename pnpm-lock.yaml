@@ -19,9 +19,18 @@ importers:
       '@kairos/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@solana-program/token':
+        specifier: ^0.13.0
+        version: 0.13.0(@solana/kit@6.9.0(typescript@5.9.3))
       '@solana/kit':
         specifier: ^6.4.0
         version: 6.9.0(typescript@5.9.3)
+      '@solana/kit-plugin-rpc':
+        specifier: ^0.11.1
+        version: 0.11.1(@solana/kit@6.9.0(typescript@5.9.3))
+      '@solana/kit-plugin-signer':
+        specifier: ^0.10.0
+        version: 0.10.0(@solana/kit@6.9.0(typescript@5.9.3))
       '@solana/subscriptions':
         specifier: 0.3.0
         version: 0.3.0(@solana/kit@6.9.0(typescript@5.9.3))(typescript@5.9.3)

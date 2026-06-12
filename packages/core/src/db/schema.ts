@@ -13,6 +13,7 @@
 import { sql } from 'drizzle-orm';
 import {
     bigint,
+    boolean,
     integer,
     jsonb,
     numeric,
@@ -123,3 +124,34 @@ export const outbox = pgTable('outbox', {
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
 });
+
+/** Merchant webhook endpoints (registered via the API; one secret each). */
+export const webhookEndpoints = pgTable('webhook_endpoints', {
+    id: serial('id').primaryKey(),
+    /** Merchant wallet pubkey — webhook events are routed by plan owner. */
+    merchant: text('merchant').notNull(),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Delivery log: one row per (outbox event, endpoint), with retry state. */
+export const webhookDeliveries = pgTable(
+    'webhook_deliveries',
+    {
+        id: serial('id').primaryKey(),
+        endpointId: integer('endpoint_id').notNull(),
+        outboxId: integer('outbox_id').notNull(),
+        eventType: text('event_type').notNull(),
+        /** 'pending' | 'succeeded' | 'failed' (will retry) | 'dead' (gave up) */
+        status: text('status').notNull().default('pending'),
+        attempts: integer('attempts').notNull().default(0),
+        nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+        lastError: text('last_error'),
+        responseStatus: integer('response_status'),
+        deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+        createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    },
+    (t) => [uniqueIndex('webhook_deliveries_endpoint_outbox_unique').on(t.endpointId, t.outboxId)],
+);

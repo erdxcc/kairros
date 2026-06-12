@@ -17,7 +17,10 @@
         "probe:insufficient-funds": "tsx scripts/probe-insufficient-funds.ts",
         "probe:delegations": "tsx scripts/probe-delegations.ts",
         "record:fixtures": "tsx scripts/record-fixtures.ts",
-        "db:stats": "tsx scripts/db-stats.ts"
+        "db:stats": "tsx scripts/db-stats.ts",
+        "demo:subscribe": "tsx scripts/demo-subscribe.ts",
+        "webhook:register": "tsx scripts/webhook-register.ts",
+        "webhook:receiver": "tsx scripts/webhook-receiver.ts"
     },
     "dependencies": {
         "@electric-sql/pglite": "^0.5.2",

@@ -13,7 +13,10 @@
     },
     "dependencies": {
         "@kairos/core": "workspace:*",
+        "@solana-program/token": "^0.13.0",
         "@solana/kit": "^6.4.0",
+        "@solana/kit-plugin-rpc": "^0.11.1",
+        "@solana/kit-plugin-signer": "^0.10.0",
         "@solana/subscriptions": "0.3.0",
         "drizzle-orm": "^0.45.2"
     },
