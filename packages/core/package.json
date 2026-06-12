@@ -14,18 +14,26 @@
         "test": "vitest run --passWithNoTests",
         "setup:devnet": "tsx scripts/setup-devnet.ts",
         "demo:lifecycle": "tsx scripts/demo-lifecycle.ts",
-        "probe:insufficient-funds": "tsx scripts/probe-insufficient-funds.ts"
+        "probe:insufficient-funds": "tsx scripts/probe-insufficient-funds.ts",
+        "probe:delegations": "tsx scripts/probe-delegations.ts",
+        "record:fixtures": "tsx scripts/record-fixtures.ts",
+        "db:stats": "tsx scripts/db-stats.ts"
     },
     "dependencies": {
+        "@electric-sql/pglite": "^0.5.2",
         "@solana-program/token": "^0.13.0",
         "@solana/kit": "^6.4.0",
         "@solana/kit-plugin-rpc": "^0.11.1",
         "@solana/kit-plugin-signer": "^0.10.0",
         "@solana/subscriptions": "0.3.0",
-        "dotenv": "^16.4.5"
+        "dotenv": "^16.4.5",
+        "drizzle-orm": "^0.45.2",
+        "pg": "^8.21.0"
     },
     "devDependencies": {
         "@types/node": "^20.17.0",
+        "@types/pg": "^8.20.0",
+        "drizzle-kit": "^0.31.10",
         "tsx": "^4.19.0",
         "typescript": "^5.6.0",
         "vitest": "^3.0.0"

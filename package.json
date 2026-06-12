@@ -15,7 +15,9 @@
         "lint": "biome check .",
         "lint:fix": "biome check --write .",
         "setup:devnet": "pnpm --filter @kairos/core setup:devnet",
-        "demo:lifecycle": "pnpm --filter @kairos/core demo:lifecycle"
+        "demo:lifecycle": "pnpm --filter @kairos/core demo:lifecycle",
+        "worker:dev": "pnpm --filter @kairos/worker dev",
+        "db:stats": "pnpm --filter @kairos/core db:stats"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4"

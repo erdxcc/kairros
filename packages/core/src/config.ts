@@ -6,6 +6,8 @@ export interface KairosConfig {
     cluster: 'devnet' | 'mainnet-beta';
     rpcUrl: string;
     keysDir: string;
+    /** postgres://... or pglite://<dir> (embedded, for local dev). */
+    databaseUrl: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export function loadConfig(): KairosConfig {
         cluster,
         rpcUrl: process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com',
         keysDir: isAbsolute(keysDir) ? keysDir : join(root, keysDir),
+        databaseUrl: process.env.DATABASE_URL ?? `pglite://${join(root, '.data', 'kairos-db')}`,
     };
 }
 

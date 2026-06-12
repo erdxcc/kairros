@@ -6,6 +6,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type KeyPairSigner, createKeyPairSignerFromBytes } from '@solana/kit';
 import { type SubscriptionsError, getSubscriptionsErrorMessage } from '@solana/subscriptions';
+import { errorChain, stringifySafe } from '../src/util.js';
+
+export { sleep, stringifySafe, withRetry } from '../src/util.js';
 
 /** Loads a Solana CLI keypair file (JSON array of 64 bytes) as a Kit signer. */
 export async function loadKeypairSigner(path: string): Promise<KeyPairSigner> {
@@ -33,34 +36,6 @@ export function readDevnetEnv(keysDir: string): DevnetEnv {
     } catch {
         throw new Error(`Missing ${devnetEnvPath(keysDir)} — run \`pnpm setup:devnet\` first.`);
     }
-}
-
-export function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Retries an async action when the public devnet RPC rate-limits us (HTTP 429).
- * Anything else is rethrown immediately.
- */
-export async function withRetry<T>(action: () => Promise<T>, attempts = 4): Promise<T> {
-    for (let attempt = 1; ; attempt++) {
-        try {
-            return await action();
-        } catch (error) {
-            const message = describeError(error);
-            const rateLimited = message.includes('429') || message.includes('Too Many Requests');
-            if (!rateLimited || attempt >= attempts) throw error;
-            const delay = 2000 * 2 ** (attempt - 1);
-            console.log(`  (rate limited by RPC, retrying in ${delay / 1000}s...)`);
-            await sleep(delay);
-        }
-    }
-}
-
-/** JSON.stringify that tolerates BigInt values (renders them as strings). */
-export function stringifySafe(value: unknown): string {
-    return JSON.stringify(value, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
 }
 
 /**
@@ -102,13 +77,7 @@ function findSignature(node: unknown, depth: number): string | undefined {
  * program custom error codes to their names where possible.
  */
 export function describeError(error: unknown): string {
-    const parts: string[] = [];
-    let current: unknown = error;
-    while (current instanceof Error) {
-        parts.push(current.message);
-        current = current.cause;
-    }
-    const combined = parts.join(' <- ');
+    const combined = errorChain(error);
     const match = combined.match(/custom program error: (0x[0-9a-fA-F]+|\d+)/);
     if (match?.[1]) {
         const code = Number(match[1]);

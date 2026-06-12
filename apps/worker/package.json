@@ -12,7 +12,10 @@
         "dev": "tsx src/index.ts"
     },
     "dependencies": {
-        "@kairos/core": "workspace:*"
+        "@kairos/core": "workspace:*",
+        "@solana/kit": "^6.4.0",
+        "@solana/subscriptions": "0.3.0",
+        "drizzle-orm": "^0.45.2"
     },
     "devDependencies": {
         "@types/node": "^20.17.0",

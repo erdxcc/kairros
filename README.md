@@ -26,8 +26,8 @@ program; it is a pure client-side layer.
 
 | Component | Status |
 | --- | --- |
-| Devnet lifecycle smoke test | 🔨 in progress |
-| Event indexer | ⏳ planned |
+| Devnet lifecycle smoke test | ✅ done |
+| Event indexer | ✅ done (cursor-based polling, all six events, golden-fixture tests) |
 | REST API + billing scheduler + webhooks | ⏳ planned |
 | Merchant dashboard | ⏳ planned |
 | Dunning, checkout widget, Telegram notifications | 🗺️ roadmap |
@@ -53,6 +53,24 @@ cp .env.example .env        # adjust RPC URL if you have a Helius/other endpoint
 pnpm setup:devnet           # generates merchant/subscriber/puller keys, creates a test mint
 pnpm demo:lifecycle         # createPlan → subscribe → charge → cancel → resume, end to end
 ```
+
+## Indexer quickstart
+
+The worker tails the live program and projects events into Postgres
+(or embedded [PGlite](https://pglite.dev/) — no database setup needed for dev):
+
+```bash
+pnpm worker:dev             # starts the indexer; backfills, then polls every 8s
+pnpm db:stats               # summary: events by kind, plans, subscriptions, charges
+```
+
+Reliability model: cursor-based `getSignaturesForAddress` polling with
+idempotent inserts — kill the worker at any point and restart it; it resumes
+from the exact signature it stopped at, with no gaps and no duplicates. Event
+decoders are locked by golden fixtures recorded from real devnet transactions
+(`packages/core/test/fixtures`), so an upstream wire-format change fails CI
+instead of silently corrupting data. For a real Postgres, run
+`docker compose up -d` and set `DATABASE_URL` accordingly.
 
 ## On-chain program
 
