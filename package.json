@@ -1,0 +1,23 @@
+{
+    "name": "solbill",
+    "private": true,
+    "version": "0.0.1",
+    "description": "Open-source merchant billing layer (dashboard, webhooks, dunning, checkout) on top of the native Solana Subscriptions program.",
+    "license": "MIT",
+    "engines": {
+        "node": ">=20.18"
+    },
+    "packageManager": "pnpm@9.15.9",
+    "scripts": {
+        "build": "pnpm -r build",
+        "typecheck": "pnpm -r typecheck",
+        "test": "pnpm -r test",
+        "lint": "biome check .",
+        "lint:fix": "biome check --write .",
+        "setup:devnet": "pnpm --filter @solbill/core setup:devnet",
+        "demo:lifecycle": "pnpm --filter @solbill/core demo:lifecycle"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^1.9.4"
+    }
+}

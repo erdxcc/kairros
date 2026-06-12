@@ -1,0 +1,12 @@
+{
+    "name": "@solbill/web",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Merchant dashboard + REST API. Next.js app scaffolded in Phase 3; placeholder until then.",
+    "license": "MIT",
+    "scripts": {
+        "build": "echo '@solbill/web: scaffolded in Phase 3 (dashboard)'",
+        "typecheck": "echo '@solbill/web: scaffolded in Phase 3 (dashboard)'",
+        "test": "echo '@solbill/web: scaffolded in Phase 3 (dashboard)'"
+    }
+}

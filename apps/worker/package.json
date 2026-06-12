@@ -1,0 +1,23 @@
+{
+    "name": "@solbill/worker",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Indexer + billing scheduler + webhook dispatcher. Implemented from Phase 1 onwards.",
+    "license": "MIT",
+    "type": "module",
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run --passWithNoTests",
+        "dev": "tsx src/index.ts"
+    },
+    "dependencies": {
+        "@solbill/core": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "^20.17.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.6.0",
+        "vitest": "^3.0.0"
+    }
+}

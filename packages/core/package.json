@@ -1,0 +1,33 @@
+{
+    "name": "@solbill/core",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Shared layer: Subscriptions program constants, event decoders, and configuration.",
+    "license": "MIT",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.check.json",
+        "test": "vitest run --passWithNoTests",
+        "setup:devnet": "tsx scripts/setup-devnet.ts",
+        "demo:lifecycle": "tsx scripts/demo-lifecycle.ts",
+        "probe:insufficient-funds": "tsx scripts/probe-insufficient-funds.ts"
+    },
+    "dependencies": {
+        "@solana-program/token": "^0.13.0",
+        "@solana/kit": "^6.4.0",
+        "@solana/kit-plugin-rpc": "^0.11.1",
+        "@solana/kit-plugin-signer": "^0.10.0",
+        "@solana/subscriptions": "0.3.0",
+        "dotenv": "^16.4.5"
+    },
+    "devDependencies": {
+        "@types/node": "^20.17.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.6.0",
+        "vitest": "^3.0.0"
+    }
+}
