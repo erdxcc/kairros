@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/*
+ * kairos dashboard design tokens. A calm, dark fintech surface (Stripe/Linear
+ * lineage) so merchant data reads clearly. Tokens are exposed to Tailwind via
+ * @theme, so utilities like `bg-surface`, `text-muted`, `border-line`,
+ * `text-accent` resolve from these variables.
+ */
+@theme {
+    --color-canvas: #0a0a0e;
+    --color-surface: #131318;
+    --color-surface-2: #1a1a21;
+    --color-line: #26262f;
+    --color-line-soft: #1d1d24;
+
+    --color-fg: #ededf1;
+    --color-muted: #9b9baa;
+    --color-faint: #6a6a78;
+
+    --color-accent: #7c6cff;
+    --color-accent-hover: #9385ff;
+    --color-accent-soft: #211d3a;
+
+    --color-success: #3ecf8e;
+    --color-success-soft: #112a20;
+    --color-danger: #f0635a;
+    --color-danger-soft: #2c1413;
+    --color-warning: #f0b15a;
+    --color-warning-soft: #2a2012;
+
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Helvetica, Arial,
+        sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+    --radius: 0.75rem;
+}
+
+@layer base {
+    html {
+        color-scheme: dark;
+    }
+
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-fg);
+        font-family: var(--font-sans);
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    /* Numerals line up in tables and stat cards. */
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+
+    *::selection {
+        background-color: var(--color-accent);
+        color: #fff;
+    }
+
+    /* Slim, unobtrusive scrollbars on dark surfaces. */
+    *::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    *::-webkit-scrollbar-thumb {
+        background-color: var(--color-line);
+        border-radius: 9999px;
+        border: 2px solid var(--color-canvas);
+    }
+}

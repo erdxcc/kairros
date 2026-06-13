@@ -32,7 +32,7 @@ program; it is a pure client-side layer.
 | Webhooks (HMAC-signed, retries) | ✅ core done ([docs](./docs/webhooks.md)); delivery UI in a later milestone |
 | Reconciler (on-chain drift repair) | ✅ done |
 | REST API (Sign-In-With-Solana auth) | ✅ done ([docs](./docs/api.md)) |
-| Merchant dashboard | 🔨 next |
+| Merchant dashboard | 🔨 in progress (Overview, Plans, Subscribers, Payments, Settings) |
 | Dunning, checkout widget, Telegram notifications | 🗺️ roadmap |
 
 ## Repository layout
@@ -95,6 +95,20 @@ pnpm --filter @kairos/web api:smoke       # full Sign-In-With-Solana flow + ever
 
 (The worker alone still runs on zero-setup PGlite; Postgres is only needed when
 the API and worker share a database.)
+
+## Merchant dashboard
+
+The same Next.js app serves the merchant dashboard at `/` (Tailwind, TanStack
+Query). Sign in by signing a message with a Solana wallet (Phantom, Solflare, …)
+via the [Wallet Standard](https://github.com/wallet-standard/wallet-standard) —
+no passwords, no transaction. From there: **Overview** (MRR, active subscribers,
+churn, a 30-day revenue chart), **Plans**, **Subscribers**, **Payments** (with
+Explorer links), and **Settings** (the puller key to add to your plans, plus
+webhook endpoints). It runs against the same `DATABASE_URL` as the API:
+
+```bash
+pnpm --filter @kairos/web dev     # dashboard + API on http://localhost:3000
+```
 
 ## On-chain program
 
