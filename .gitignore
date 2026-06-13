@@ -23,3 +23,6 @@ coverage/
 .DS_Store
 Thumbs.db
 .data/
+
+# Local Claude Code tooling / installed skills (not product code)
+.claude/

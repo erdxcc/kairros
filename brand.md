@@ -32,9 +32,12 @@ Each semantic color has a `-soft` companion for low-emphasis badge fills.
 
 ## Typography
 
-- **Sans** (`--font-sans`): system UI stack. All prose and labels.
-- **Mono** (`--font-mono`): addresses, signatures, and money/numeric values that
-  change — always paired with `tabular-nums` so digits don't jitter.
+- **Sans** (`--font-sans`): **Fira Sans** (via `next/font`, self-hosted), with a
+  system fallback. All prose and labels.
+- **Mono** (`--font-mono`): **Fira Code**, for addresses, signatures, and
+  money/numeric values that change — always paired with `tabular-nums` so digits
+  don't jitter. Fira is a data-dashboard pairing (per the ui-ux-pro-max
+  recommendation for analytics/admin surfaces).
 - Scale leans small and tight: `text-xl` page titles, `text-sm` body, `text-xs`
   for labels/metadata. `tracking-tight` on headings.
 

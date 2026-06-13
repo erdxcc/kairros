@@ -29,9 +29,10 @@
     --color-warning: #f0b15a;
     --color-warning-soft: #2a2012;
 
-    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Helvetica, Arial,
-        sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+    /* Fira via next/font (vars set on <html>); robust system fallbacks. */
+    --font-sans: var(--font-fira-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+        Arial, sans-serif;
+    --font-mono: var(--font-fira-code), ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
     --radius: 0.75rem;
 }
@@ -53,6 +54,13 @@
     /* Numerals line up in tables and stat cards. */
     .tabular {
         font-variant-numeric: tabular-nums;
+    }
+
+    /* Interactive elements signal clickability (Tailwind Preflight no longer does). */
+    button:not(:disabled),
+    select:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]) {
+        cursor: pointer;
     }
 
     *::selection {
