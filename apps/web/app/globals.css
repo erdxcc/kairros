@@ -15,7 +15,8 @@
 
     --color-fg: #ededf1;
     --color-muted: #9b9baa;
-    --color-faint: #6a6a78;
+    /* faint passes WCAG AA (~4.8:1) on the canvas for small captions/labels. */
+    --color-faint: #82828f;
 
     --color-accent: #7c6cff;
     --color-accent-hover: #9385ff;
@@ -68,5 +69,17 @@
         background-color: var(--color-line);
         border-radius: 9999px;
         border: 2px solid var(--color-canvas);
+    }
+
+    /* Honor reduced-motion: no spinners, pulses, or transitions. */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
     }
 }

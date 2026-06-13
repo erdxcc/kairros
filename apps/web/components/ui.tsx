@@ -43,7 +43,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ variant = 'secondary', size = 'md', className, children, ...props }: ButtonProps) {
     const base =
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
+        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
     const sizes = { sm: 'h-8 px-3 text-xs', md: 'h-9 px-4 text-sm' };
     const variants = {
         primary: 'bg-accent text-white hover:bg-accent-hover',
@@ -161,7 +161,7 @@ export function CopyButton({ value, label }: { value: string; label?: string }) 
                     setTimeout(() => setCopied(false), 1200);
                 });
             }}
-            className="inline-flex items-center text-faint transition-colors hover:text-fg"
+            className="-m-1 inline-flex items-center justify-center rounded-md p-2 text-faint transition-colors hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             aria-label={label ?? 'Copy'}
         >
             {copied ? <CheckIcon width={16} height={16} className="text-success" /> : <CopyIcon />}
@@ -186,7 +186,8 @@ export function AddressLink({
                 href={href}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 font-mono text-muted text-xs transition-colors hover:text-accent"
+                title={value}
+                className="inline-flex items-center gap-1 rounded font-mono text-muted text-xs transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
                 {short(value, edge)}
                 <ExternalLinkIcon width={12} height={12} className="opacity-60" />
@@ -235,7 +236,9 @@ export function StatCard({
             {loading ? (
                 <Skeleton className="mt-2 h-7 w-24" />
             ) : (
-                <p className="mt-2 font-semibold text-2xl text-fg tabular tracking-tight">{value}</p>
+                <p className="mt-2 font-mono font-semibold text-2xl text-fg tabular tracking-tight">
+                    {value}
+                </p>
             )}
             {sub && !loading ? <p className="mt-1 text-faint text-xs">{sub}</p> : null}
         </Card>

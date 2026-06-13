@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                                 key={href}
                                 href={href}
                                 className={cn(
-                                    'flex items-center gap-3 rounded-lg px-3 py-2 font-medium text-sm transition-colors',
+                                    'flex items-center gap-3 rounded-lg px-3 py-2 font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
                                     active
                                         ? 'bg-surface-2 text-fg'
                                         : 'text-muted hover:bg-surface-2/60 hover:text-fg',
@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <button
                         type="button"
                         onClick={signOut}
-                        className="mt-2.5 inline-flex items-center gap-1.5 text-faint text-xs transition-colors hover:text-danger"
+                        className="-mx-1 mt-2 inline-flex items-center gap-1.5 rounded-md px-1 py-1.5 text-faint text-xs transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                     >
                         <LogOutIcon width={14} height={14} />
                         Sign out
@@ -97,8 +97,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-line border-b bg-canvas/80 px-5 py-3 backdrop-blur md:px-8">
                     <span className="font-semibold text-fg text-sm md:hidden">kairos</span>
                     <div className="ml-auto flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-faint text-xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        {/* Cluster indicator: amber for devnet so it's unmistakable (never mainnet). */}
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-warning/20 bg-warning-soft px-2 py-1 text-warning text-xs">
+                            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                             devnet
                         </span>
                         <span className="hidden font-mono text-muted text-xs sm:inline">

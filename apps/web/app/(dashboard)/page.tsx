@@ -113,7 +113,7 @@ export default function OverviewPage() {
                                     <Td>
                                         <AddressLink value={c.subscriber} />
                                     </Td>
-                                    <Td className="tabular text-fg">{formatAmount(c.amount)}</Td>
+                                    <Td className="font-mono tabular text-fg">{formatAmount(c.amount)}</Td>
                                     <Td>
                                         <StatusBadge status={c.status} />
                                     </Td>

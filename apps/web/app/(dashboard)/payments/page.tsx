@@ -55,7 +55,7 @@ export default function PaymentsPage() {
                                     <Td>
                                         <AddressLink value={c.subscriber} />
                                     </Td>
-                                    <Td className="tabular text-right text-fg">
+                                    <Td className="font-mono tabular text-right text-fg">
                                         {formatAmount(c.amount)}{' '}
                                         <span className="text-faint text-xs">{short(c.mint)}</span>
                                     </Td>

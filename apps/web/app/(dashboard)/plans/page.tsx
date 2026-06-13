@@ -63,11 +63,13 @@ export default function PlansPage() {
                                         </div>
                                     </Td>
                                     <Td>
-                                        <span className="tabular text-fg">{formatAmount(p.amount)}</span>{' '}
+                                        <span className="font-mono tabular text-fg">
+                                            {formatAmount(p.amount)}
+                                        </span>{' '}
                                         <span className="text-faint text-xs">{short(p.mint)}</span>
                                     </Td>
                                     <Td className="text-muted">{formatPeriod(p.periodHours)}</Td>
-                                    <Td className="tabular text-right text-fg">
+                                    <Td className="font-mono tabular text-right text-fg">
                                         {activeByPlan.get(p.planPda) ?? 0}
                                     </Td>
                                     <Td>

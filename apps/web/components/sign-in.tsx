@@ -24,9 +24,9 @@ export function SignIn() {
         try {
             await signIn(detected);
         } catch (err) {
-            // Wallet rejections surface as errors; show a friendly message.
             const message = err instanceof Error ? err.message : 'Sign-in failed';
-            setError(/reject|denied|cancel/i.test(message) ? 'Sign-in was cancelled.' : message);
+            // Declining the signature is a choice, not an error — return to idle quietly.
+            if (!/reject|denied|cancel|user/i.test(message)) setError(message);
         } finally {
             setPending(null);
         }
@@ -50,9 +50,27 @@ export function SignIn() {
                         <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
                             <WalletIcon className="text-faint" />
                             <p className="font-medium text-fg text-sm">No wallet detected</p>
-                            <p className="max-w-[15rem] text-faint text-xs">
-                                Install a Solana wallet such as Phantom or Solflare, then reload this page.
+                            <p className="max-w-[16rem] text-faint text-xs">
+                                Install a Solana wallet, then reload this page.
                             </p>
+                            <div className="mt-1 flex gap-4 font-medium text-xs">
+                                <a
+                                    href="https://phantom.app/download"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded text-accent transition-colors hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                                >
+                                    Get Phantom
+                                </a>
+                                <a
+                                    href="https://solflare.com/download"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded text-accent transition-colors hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                                >
+                                    Get Solflare
+                                </a>
+                            </div>
                         </div>
                     ) : (
                         <ul className="flex flex-col gap-1">
@@ -61,8 +79,9 @@ export function SignIn() {
                                     <button
                                         type="button"
                                         disabled={pending !== null}
+                                        aria-busy={pending === w.name}
                                         onClick={() => handle(w)}
-                                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {w.icon ? (
                                             <img
@@ -76,7 +95,12 @@ export function SignIn() {
                                             <WalletIcon className="text-muted" />
                                         )}
                                         <span className="flex-1 font-medium text-fg text-sm">{w.name}</span>
-                                        {pending === w.name ? <Spinner className="text-accent" /> : null}
+                                        {pending === w.name ? (
+                                            <span className="inline-flex items-center gap-2 text-faint text-xs">
+                                                Connecting…
+                                                <Spinner className="text-accent" />
+                                            </span>
+                                        ) : null}
                                     </button>
                                 </li>
                             ))}

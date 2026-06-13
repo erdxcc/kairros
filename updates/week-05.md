@@ -29,26 +29,36 @@ to exercise end-to-end.**
   badges, stat cards, empty/loading/error states) on Tailwind v4 in a calm dark
   theme. Every list has explicit loading, empty, and error states.
 
-## Verified
+- **Craft pass.** A design-quality sweep over the whole dashboard: brand-color
+  focus rings on every interactive element, larger hit targets on icon buttons,
+  `font-mono tabular-nums` on every money value so digits never jitter, an amber
+  (not green) devnet indicator, a three-state wallet flow ("Connecting…"), wallet
+  rejection treated as a quiet return-to-idle rather than an error, an AA-contrast
+  bump on secondary text, and a global `prefers-reduced-motion` guard.
 
-- `pnpm lint` (Biome, 84 files), `pnpm typecheck` (3 packages), and `pnpm test`
-  (34 tests) are clean, and `pnpm build` produces an optimized Next.js build —
-  5 dashboard routes + 9 API routes.
+## Verified — now live on Postgres
+
+The whole stack ran end to end on a free **Neon** database:
+
+- `pnpm db:migrate` created the schema on Neon; the worker indexed live devnet
+  activity into it, then a full `demo:lifecycle` (createPlan → subscribe → a real
+  5-devUSDC charge → cancel → resume) was projected in.
+- Signed in as the devnet merchant, the API served **its** real data over HTTP:
+  1 plan, 1 active subscriber, 1 succeeded charge, MRR and 30-day revenue computed
+  from the projections — all while the worker wrote to the same database
+  concurrently (the multi-process case embedded PGlite can't handle).
+- `pnpm lint` (Biome, 84 files), `pnpm typecheck` (3 packages), `pnpm test`
+  (34 tests), and `pnpm build` (5 dashboard routes + 9 API routes) are clean.
 
 ## Honest status
 
-Two things need a real environment to exercise end-to-end, and both are queued:
-
-- **Live data** needs Postgres (the API and worker share one database, and PGlite
-  is single-process). Point `DATABASE_URL` at a free Neon database, run
-  `pnpm db:migrate`, start the worker, and the dashboard renders live devnet
+- **Live data path: done** — worker → Neon → dashboard, verified with real devnet
   projections.
-- **The wallet handshake** is written against the documented Wallet Standard API
-  but needs a browser with a real wallet extension (Phantom/Solflare) to confirm —
-  it can't be driven headlessly.
+- **The in-browser wallet handshake** is written against the documented Wallet
+  Standard API but still needs a browser with a real wallet extension
+  (Phantom/Solflare) to confirm; it can't be driven headlessly.
 
 ## Next
 
-Wire the dashboard to a live Postgres-backed worker for the end-to-end demo
-(clean wallet → plan → subscription → auto-charge → all of it on screen), then
-Phase 4: demo polish, screenshots, and the grant application.
+Phase 4: a clean end-to-end demo recording (wallet → plan → subscription →
+auto-charge on screen), screenshots, and the grant application.

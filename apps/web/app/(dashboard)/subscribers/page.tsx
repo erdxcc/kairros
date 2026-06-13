@@ -77,7 +77,7 @@ export default function SubscribersPage() {
                                         <StatusBadge status={s.status} />
                                     </Td>
                                     <Td className="text-muted text-xs">{formatDate(s.createdTs)}</Td>
-                                    <Td className="tabular text-right text-fg">
+                                    <Td className="font-mono tabular text-right text-fg">
                                         {formatAmount(s.amountPulledInPeriod)}
                                     </Td>
                                     <Td className="text-muted text-xs">
