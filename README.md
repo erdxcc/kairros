@@ -31,16 +31,16 @@ program; it is a pure client-side layer.
 | Billing scheduler (auto-charge via puller key) | ✅ done (verified live on devnet) |
 | Webhooks (HMAC-signed, retries) | ✅ core done ([docs](./docs/webhooks.md)); delivery UI in a later milestone |
 | Reconciler (on-chain drift repair) | ✅ done |
-| REST API (SIWS auth) | 🔨 next |
-| Merchant dashboard | ⏳ planned |
+| REST API (Sign-In-With-Solana auth) | ✅ done ([docs](./docs/api.md)) |
+| Merchant dashboard | 🔨 next |
 | Dunning, checkout widget, Telegram notifications | 🗺️ roadmap |
 
 ## Repository layout
 
 ```
-packages/core    Shared layer: program constants, event decoders, config
-apps/worker      Indexer + billing scheduler + webhook dispatcher (long-running process)
-apps/web         Merchant dashboard + REST API (Next.js; scaffolded in a later phase)
+packages/core    Shared layer: program constants, event decoders, billing rules, db, config
+apps/worker      Indexer + billing scheduler + webhook dispatcher + reconciler (one process)
+apps/web         Merchant REST API + dashboard (Next.js App Router)
 docs/            Integration notes and research
 updates/         Weekly build updates
 ```
@@ -72,8 +72,29 @@ idempotent inserts — kill the worker at any point and restart it; it resumes
 from the exact signature it stopped at, with no gaps and no duplicates. Event
 decoders are locked by golden fixtures recorded from real devnet transactions
 (`packages/core/test/fixtures`), so an upstream wire-format change fails CI
-instead of silently corrupting data. For a real Postgres, run
-`docker compose up -d` and set `DATABASE_URL` accordingly.
+instead of silently corrupting data.
+
+## Merchant API quickstart
+
+The REST API (Next.js App Router, under `/api/v1`) authenticates merchants with
+[Sign-In-With-Solana](./docs/api.md) and serves their plans, subscribers,
+charges, MRR/churn metrics, and webhook-endpoint management — all scoped to the
+authenticated wallet (the plan owner). It reads the projections the worker
+maintains, so it never hits RPC.
+
+The API and the worker share one database. PGlite is single-process, so the
+shared setup uses **Postgres** (a free [Neon](https://neon.tech) database or
+`docker compose up -d`):
+
+```bash
+export DATABASE_URL=postgres://...        # Neon or local Postgres
+pnpm db:migrate                           # create the schema
+pnpm --filter @kairos/web build && pnpm --filter @kairos/web start   # API on :3000
+pnpm --filter @kairos/web api:smoke       # full Sign-In-With-Solana flow + every endpoint
+```
+
+(The worker alone still runs on zero-setup PGlite; Postgres is only needed when
+the API and worker share a database.)
 
 ## On-chain program
 
