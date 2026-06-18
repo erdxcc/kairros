@@ -1,21 +1,20 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-client';
-import { short } from '@/lib/format';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
-    LogOutIcon,
     Logo,
     OverviewIcon,
     PaymentsIcon,
     PlansIcon,
     SettingsIcon,
     SubscribersIcon,
+    WalletIcon,
 } from './icons';
-import { SignIn } from './sign-in';
 import { Spinner, cn } from './ui';
+import { WalletMenu } from './wallet-menu';
 
 const NAV = [
     { href: '/', label: 'Overview', icon: OverviewIcon },
@@ -26,12 +25,12 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-    const { session, signOut } = useAuth();
+    const { session } = useAuth();
     const pathname = usePathname();
     const [mounted, setMounted] = useState(false);
 
-    // Session hydrates in an effect; render a neutral splash until then so a
-    // valid session never flashes the sign-in screen on refresh.
+    // Session hydrates in an effect; hold a neutral splash until then so the
+    // header doesn't flash between connected/disconnected on refresh.
     useEffect(() => setMounted(true), []);
 
     if (!mounted) {
@@ -41,8 +40,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
         );
     }
-
-    if (!session) return <SignIn />;
 
     return (
         <div className="flex min-h-dvh bg-canvas">
@@ -78,19 +75,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                         );
                     })}
                 </nav>
-
-                <div className="rounded-lg border border-line-soft bg-surface p-3">
-                    <p className="text-faint text-xs">Signed in as</p>
-                    <p className="mt-0.5 font-mono text-fg text-xs">{short(session.merchant, 5)}</p>
-                    <button
-                        type="button"
-                        onClick={signOut}
-                        className="-mx-1 mt-2 inline-flex items-center gap-1.5 rounded-md px-1 py-1.5 text-faint text-xs transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                    >
-                        <LogOutIcon width={14} height={14} />
-                        Sign out
-                    </button>
-                </div>
             </aside>
 
             <div className="flex min-w-0 flex-1 flex-col">
@@ -102,13 +86,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                             <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                             devnet
                         </span>
-                        <span className="hidden font-mono text-muted text-xs sm:inline">
-                            {short(session.merchant, 4)}
-                        </span>
+                        <WalletMenu />
                     </div>
                 </header>
 
-                <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-7 md:px-8">{children}</main>
+                <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-7 md:px-8">
+                    {session ? children : <ConnectPrompt />}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// Shown in place of the data pages when no wallet is connected — the dashboard
+// chrome stays visible, and connecting is a top-right action (or this button).
+function ConnectPrompt() {
+    return (
+        <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-surface text-accent">
+                <WalletIcon width={24} height={24} />
+            </div>
+            <h1 className="mt-4 font-semibold text-fg text-lg tracking-tight">Connect your wallet</h1>
+            <p className="mt-1 max-w-sm text-muted text-sm">
+                Sign in with your Solana wallet to load your merchant data. One signature, no
+                transaction, no gas.
+            </p>
+            <div className="mt-5">
+                <WalletMenu />
             </div>
         </div>
     );
