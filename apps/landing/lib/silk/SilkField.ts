@@ -6,6 +6,7 @@ import {
   DIVERGENCE,
   PRESSURE,
   PROJECT,
+  DISPLACE,
   DISPLAY,
 } from "./shaders";
 import { createPaletteCanvas, DEFAULT_PALETTE } from "./palette";
@@ -16,6 +17,15 @@ const TEXEL = 1 / SIM_SIZE;
 const PRESSURE_ITERATIONS = 10;
 const POINTER_COUNT = 8;
 const POINTER_LERP = 0.2;
+
+// Persistent-displacement ("silk memory") + idle-wind tunables.
+const DISP_GAIN = 0.02; //      how strongly velocity feeds the held displacement
+const DISP_RELAX = 0.99; //     settle: 1.0 holds the shape, lower returns to flat
+const DISP_ADVECT = 1.5; //     how far the wrinkle travels with the flow (low = stays put under cursor)
+const DISP_MAX = 0.06; //       clamp on displacement (guards against whole-screen)
+const WIND_STRENGTH = 0.04; //  idle wind ripple amplitude
+const CALM_THRESHOLD = 0.004; // pointer speed above which the wind is hushed
+const CALM_SMOOTH = 0.04; //    how fast the wind ramps in / out
 
 type GL = Renderer["gl"];
 
@@ -46,6 +56,7 @@ export class SilkField {
 
   private field!: DoubleFBO;
   private pressure!: DoubleFBO;
+  private disp!: DoubleFBO;
   private divergence!: RenderTarget;
   private tMap!: Texture;
 
@@ -54,6 +65,7 @@ export class SilkField {
   private divergenceMesh!: Mesh;
   private pressureMesh!: Mesh;
   private projectMesh!: Mesh;
+  private displaceMesh!: Mesh;
   private displayMesh!: Mesh;
 
   private touch = new Float32Array(POINTER_COUNT * 4);
@@ -64,6 +76,7 @@ export class SilkField {
   private time = 0;
   private lastFrame = 0;
   private aspect = 1;
+  private calm = 1; // 0..1, 1 when the pointer is idle (drives the wind)
 
   private mounted = false;
   private visible = true;
@@ -240,12 +253,15 @@ export class SilkField {
   private initTargets(): void {
     this.field = this.makeDoubleFBO();
     this.pressure = this.makeDoubleFBO();
+    this.disp = this.makeDoubleFBO();
     this.divergence = this.makeFBO();
     // Zero everything so the half-float buffers never start with garbage/NaN.
     this.clearTarget(this.field.read);
     this.clearTarget(this.field.write);
     this.clearTarget(this.pressure.read);
     this.clearTarget(this.pressure.write);
+    this.clearTarget(this.disp.read);
+    this.clearTarget(this.disp.write);
     this.clearTarget(this.divergence);
   }
 
@@ -310,12 +326,25 @@ export class SilkField {
       uTexel: { value: texel },
     });
 
+    this.displaceMesh = this.makeMesh(DISPLACE, {
+      tDisp: { value: null },
+      tField: { value: null },
+      uTexel: { value: texel },
+      uGain: { value: DISP_GAIN },
+      uRelax: { value: DISP_RELAX },
+      uAdvect: { value: DISP_ADVECT },
+      uMaxDisp: { value: DISP_MAX },
+    });
+
     this.displayMesh = this.makeMesh(DISPLAY, {
       tField: { value: null },
+      tDisp: { value: null },
       tMap: { value: null },
       uDistortion: { value: this.opts.distortion },
       uBlackOverlay: { value: this.opts.blackOverlayAlpha },
       uTime: { value: 0 },
+      uWind: { value: WIND_STRENGTH },
+      uCalm: { value: 1 },
     });
   }
 
@@ -369,6 +398,7 @@ export class SilkField {
   }
 
   private updatePointers(): void {
+    let activity = 0;
     for (let i = 0; i < POINTER_COUNT; i++) {
       const p = this.pointers[i]!;
       const prevX = p.x;
@@ -386,7 +416,14 @@ export class SilkField {
       // out when the pointer isn't engaged so the splat fades cleanly.
       this.touch[base + 2] = p.vx * this.aspect * active;
       this.touch[base + 3] = p.vy * active;
+
+      if (active) activity = Math.max(activity, Math.hypot(p.vx, p.vy));
     }
+
+    // Smoothly track how "calm" the pointer is so the wind ramps in when the
+    // cursor settles and is hushed while the user is actively dragging.
+    const targetCalm = 1 - Math.min(activity / CALM_THRESHOLD, 1);
+    this.calm += (targetCalm - this.calm) * CALM_SMOOTH;
 
     // Mirror the packed touch buffer into the 8 individual vec4 uniforms.
     const u = this.injectMesh.program.uniforms;
@@ -463,10 +500,18 @@ export class SilkField {
     this.blit(this.projectMesh, this.field.write);
     this.field.swap();
 
+    // 5b. Accumulate the persistent silk displacement from the new velocity.
+    this.displaceMesh.program.uniforms.tDisp.value = this.disp.read.texture;
+    this.displaceMesh.program.uniforms.tField.value = this.field.read.texture;
+    this.blit(this.displaceMesh, this.disp.write);
+    this.disp.swap();
+
     // 6. Display to screen.
     this.displayMesh.program.uniforms.tField.value = this.field.read.texture;
+    this.displayMesh.program.uniforms.tDisp.value = this.disp.read.texture;
     this.displayMesh.program.uniforms.tMap.value = this.tMap;
     this.displayMesh.program.uniforms.uTime.value = this.time;
+    this.displayMesh.program.uniforms.uCalm.value = this.calm;
     this.blit(this.displayMesh, null);
   }
 }

@@ -39,7 +39,9 @@ uniform vec4 uTouch4; uniform vec4 uTouch5; uniform vec4 uTouch6; uniform vec4 u
 void splat(vec4 t, vec2 p, float uAspect, float uTime, inout vec2 vel, inout float energy) {
   vec2 dir = t.zw;
   float raw = length(dir);
-  if (raw < 1e-5) return;
+  // Deadzone: ignore sub-pixel jitter and the pointer-lerp tail when the cursor
+  // is nearly still, so a near-stationary pointer stops pumping drift into the field.
+  if (raw < 2e-4) return;
   // поджимаем: медленные движения подтягиваются к сильным
   float speed = sqrt(raw) * 0.9;
   if (speed < 1e-5) return;
@@ -73,7 +75,10 @@ void splat(vec4 t, vec2 p, float uAspect, float uTime, inout vec2 vel, inout flo
 
   float strength = 22.0 + speed * 18.0;
   vel += push * amp * strength * 0.02;
-  energy = max(energy, amp * (0.2 + speed * 20.0));
+  // Energy from RAW per-frame motion (not the sqrt-boosted speed): a slow drag
+  // stays a small LOCAL fold, fast saturates — this is what keeps a slow drag from
+  // translating the whole screen, while DISPLAY masks the silk smear by energy.
+  energy = max(energy, amp * raw * 100.0);
 }
 
 void main() {
@@ -220,8 +225,55 @@ void main() {
 }
 `;
 
-/* 6. DISPLAY — distort the base tMap by velocity and layer trail / smoke / oil
- * shimmer / a faint chromatic shift, mixed by energy and kept dark. */
+/* 5b. DISPLACE — integrate the velocity field into a PERSISTENT displacement so
+ * the silk keeps its shape after the cursor stops (memory), coasts a little
+ * further (inertia) and travels with the flow, instead of snapping back to the
+ * origin. Energy-gated so a broad swirl/drift can't shift the whole screen. */
+export const DISPLACE = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 fragColor;
+
+uniform sampler2D tDisp;   // previous displacement (RG)
+uniform sampler2D tField;  // velocity (RG) + energy (B), post-projection
+uniform vec2 uTexel;
+uniform float uGain;       // velocity -> displacement integration rate
+uniform float uRelax;      // settle: 1.0 holds the shape, <1.0 drifts back flat
+uniform float uAdvect;     // how far the wrinkle travels with the flow
+uniform float uMaxDisp;    // hard clamp so nothing runs away to whole-screen
+
+void main() {
+  vec4 f = texture(tField, vUv);
+  vec2 vel = f.xy;
+  float energy = f.b;
+
+  // Carry the existing wrinkle along the flow (semi-Lagrangian backtrace) so the
+  // deformation moves WITH the silk instead of sitting still in screen space.
+  vec2 src = vUv - vel * uTexel * uAdvect;
+  vec2 d = texture(tDisp, src).xy;
+
+  // Integrate velocity into a LASTING displacement, gated by local energy. The
+  // gate is TIGHT (0.45..1.2) so only the high-energy core right under the cursor
+  // deforms — the broad, low-energy halo of the incompressible flow no longer
+  // accumulates, which is what used to bulge the whole screen like one big blob.
+  float gate = smoothstep(0.45, 1.2, energy);
+  d += vel * uGain * gate;
+
+  // Elastic settle — NOT a snap back to origin: the silk relaxes around where it
+  // stopped. Near 1.0 holds the shape longer; lower values return to flat sooner.
+  d *= uRelax;
+
+  // Safety clamp: displacement can never exceed this, so however long you swirl
+  // the texture can't be translated wholesale.
+  float m = length(d);
+  if (m > uMaxDisp) d *= uMaxDisp / m;
+
+  fragColor = vec4(d, 0.0, 1.0);
+}
+`;
+
+/* 6. DISPLAY — distort the base tMap by the velocity field (energy-masked) + idle
+ * wind, layer trail / smoke / oil shimmer / a faint chromatic shift, kept dark. */
 export const DISPLAY = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vUv;
@@ -232,6 +284,16 @@ uniform sampler2D tMap;
 uniform float uDistortion;
 uniform float uBlackOverlay;
 uniform float uTime;
+uniform float uWind;
+uniform float uCalm;
+
+// Soft, slow, swirly field used as the idle "wind" that ripples the silk. Lower
+// spatial frequencies = larger, more readable billows; faster time = livelier.
+vec2 windField(vec2 p, float t) {
+  float a = sin(p.x * 4.0 + t * 0.55) + cos(p.y * 5.0 - t * 0.42);
+  float b = sin(p.y * 3.5 - t * 0.48) + cos(p.x * 6.0 + t * 0.37);
+  return vec2(b, -a);
+}
 
 void main() {
   vec4 field = texture(tField, vUv);
@@ -240,9 +302,12 @@ void main() {
   float speed = length(vel);
   vec2 dir = speed > 1e-5 ? vel / speed : vec2(0.0);
 
-  // Base distorted sample.
+  // Base sample distorted directly by the VELOCITY field, masked by energy so the
+  // silk smear only happens where the cursor actually is (the original silk logic),
+  // plus the gentle idle wind ripple that only shows when the pointer is calm.
   float mask = smoothstep(0.02, 0.25, energy);
-  vec2 dUv = vUv - vel * uDistortion * (0.04 + energy * 0.94)*mask;
+  vec2 wind = windField(vUv, uTime) * uWind * uCalm;
+  vec2 dUv = vUv - vel * uDistortion * (0.04 + energy * 0.94) * mask - wind;
   vec3 color = texture(tMap, dUv).rgb;
 
   // Trail: a few samples dragged along the flow (silky smear).
