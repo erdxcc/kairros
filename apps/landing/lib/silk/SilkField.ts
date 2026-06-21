@@ -3,10 +3,11 @@ import {
   VERTEX,
   INJECT,
   ADVECT,
+  VORTICITY,
   DIVERGENCE,
   PRESSURE,
   PROJECT,
-  DISPLACE,
+  DYE,
   DISPLAY,
 } from "./shaders";
 import { createPaletteCanvas, DEFAULT_PALETTE } from "./palette";
@@ -18,11 +19,17 @@ const PRESSURE_ITERATIONS = 10;
 const POINTER_COUNT = 8;
 const POINTER_LERP = 0.2;
 
-// Persistent-displacement ("silk memory") + idle-wind tunables.
-const DISP_GAIN = 0.02; //      how strongly velocity feeds the held displacement
-const DISP_RELAX = 0.99; //     settle: 1.0 holds the shape, lower returns to flat
-const DISP_ADVECT = 1.5; //     how far the wrinkle travels with the flow (low = stays put under cursor)
-const DISP_MAX = 0.06; //       clamp on displacement (guards against whole-screen)
+// Solver "feel" tunables (Part B — inertia & physical settling).
+const VISCOSITY = 0.18; //          ADVECT smoothing: low = more vortices, higher = fewer lumps
+const VORTICITY_STRENGTH = 0.2; //  vorticity-confinement strength (energy-gated, no calm-zone lumps)
+const MAX_VEL = 3.0; //             clamp on field velocity magnitude (stops inertial runaway)
+const MAX_FOLD = 0.03; //           hard cap on the DISPLAY fold offset in UV (no screen-spanning tails)
+
+// Dye field ("fluid memory", Part C) + idle-wind tunables.
+const DYE_ADVECT = 0; //        0 = trace stays where the cursor passed (no flow-carried tails); >0 drifts
+const DYE_DECAY = 0.99; //      slow dissolve per frame: closer to 1 = longer-lasting wake
+const DYE_INJECT = 0.12; //     how much new silk the energetic flow deposits per frame
+const DYE_MIX = 0.5; //         how strongly the lingering dye shows over the base
 const WIND_STRENGTH = 0.04; //  idle wind ripple amplitude
 const CALM_THRESHOLD = 0.004; // pointer speed above which the wind is hushed
 const CALM_SMOOTH = 0.04; //    how fast the wind ramps in / out
@@ -56,16 +63,17 @@ export class SilkField {
 
   private field!: DoubleFBO;
   private pressure!: DoubleFBO;
-  private disp!: DoubleFBO;
+  private dye!: DoubleFBO;
   private divergence!: RenderTarget;
   private tMap!: Texture;
 
   private injectMesh!: Mesh;
   private advectMesh!: Mesh;
+  private vorticityMesh!: Mesh;
   private divergenceMesh!: Mesh;
   private pressureMesh!: Mesh;
   private projectMesh!: Mesh;
-  private displaceMesh!: Mesh;
+  private dyeMesh!: Mesh;
   private displayMesh!: Mesh;
 
   private touch = new Float32Array(POINTER_COUNT * 4);
@@ -253,23 +261,25 @@ export class SilkField {
   private initTargets(): void {
     this.field = this.makeDoubleFBO();
     this.pressure = this.makeDoubleFBO();
-    this.disp = this.makeDoubleFBO();
+    this.dye = this.makeDoubleFBO();
     this.divergence = this.makeFBO();
     // Zero everything so the half-float buffers never start with garbage/NaN.
     this.clearTarget(this.field.read);
     this.clearTarget(this.field.write);
     this.clearTarget(this.pressure.read);
     this.clearTarget(this.pressure.write);
-    this.clearTarget(this.disp.read);
-    this.clearTarget(this.disp.write);
+    this.clearTarget(this.dye.read, 0);
+    this.clearTarget(this.dye.write, 0);
     this.clearTarget(this.divergence);
   }
 
-  private clearTarget(rt: RenderTarget): void {
+  // alpha defaults to 1; the dye buffer must clear to 0 because there alpha is the
+  // material density — starting at 1 would tint the whole screen black until decay.
+  private clearTarget(rt: RenderTarget, alpha = 1): void {
     const gl = this.gl!;
     gl.bindFramebuffer(gl.FRAMEBUFFER, rt.buffer);
     gl.viewport(0, 0, SIM_SIZE, SIM_SIZE);
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(0, 0, 0, alpha);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
@@ -307,6 +317,14 @@ export class SilkField {
     this.advectMesh = this.makeMesh(ADVECT, {
       tField: { value: null },
       uTexel: { value: texel },
+      uViscosity: { value: VISCOSITY },
+      uMaxVel: { value: MAX_VEL },
+    });
+
+    this.vorticityMesh = this.makeMesh(VORTICITY, {
+      tField: { value: null },
+      uTexel: { value: texel },
+      uVorticity: { value: VORTICITY_STRENGTH },
     });
 
     this.divergenceMesh = this.makeMesh(DIVERGENCE, {
@@ -326,25 +344,28 @@ export class SilkField {
       uTexel: { value: texel },
     });
 
-    this.displaceMesh = this.makeMesh(DISPLACE, {
-      tDisp: { value: null },
+    this.dyeMesh = this.makeMesh(DYE, {
+      tDye: { value: null },
       tField: { value: null },
+      tMap: { value: null },
       uTexel: { value: texel },
-      uGain: { value: DISP_GAIN },
-      uRelax: { value: DISP_RELAX },
-      uAdvect: { value: DISP_ADVECT },
-      uMaxDisp: { value: DISP_MAX },
+      uDistortion: { value: this.opts.distortion },
+      uAdvect: { value: DYE_ADVECT },
+      uDecay: { value: DYE_DECAY },
+      uInject: { value: DYE_INJECT },
     });
 
     this.displayMesh = this.makeMesh(DISPLAY, {
       tField: { value: null },
-      tDisp: { value: null },
+      tDye: { value: null },
       tMap: { value: null },
       uDistortion: { value: this.opts.distortion },
       uBlackOverlay: { value: this.opts.blackOverlayAlpha },
       uTime: { value: 0 },
       uWind: { value: WIND_STRENGTH },
       uCalm: { value: 1 },
+      uDyeMix: { value: DYE_MIX },
+      uMaxFold: { value: MAX_FOLD },
     });
   }
 
@@ -477,9 +498,14 @@ export class SilkField {
     this.blit(this.injectMesh, this.field.write);
     this.field.swap();
 
-    // 2. Advect + diffuse.
+    // 2. Advect (near-inviscid self-advection + a touch of viscosity).
     this.advectMesh.program.uniforms.tField.value = this.field.read.texture;
     this.blit(this.advectMesh, this.field.write);
+    this.field.swap();
+
+    // 2b. Vorticity confinement: feed the eaten swirl back into the velocity.
+    this.vorticityMesh.program.uniforms.tField.value = this.field.read.texture;
+    this.blit(this.vorticityMesh, this.field.write);
     this.field.swap();
 
     // 3. Divergence of the velocity field.
@@ -500,15 +526,17 @@ export class SilkField {
     this.blit(this.projectMesh, this.field.write);
     this.field.swap();
 
-    // 5b. Accumulate the persistent silk displacement from the new velocity.
-    this.displaceMesh.program.uniforms.tDisp.value = this.disp.read.texture;
-    this.displaceMesh.program.uniforms.tField.value = this.field.read.texture;
-    this.blit(this.displaceMesh, this.disp.write);
-    this.disp.swap();
+    // 5b. Advance the dye ("fluid memory"): carry it with the flow, dissolve it
+    // slowly, and deposit fresh silk where the flow is energetic.
+    this.dyeMesh.program.uniforms.tDye.value = this.dye.read.texture;
+    this.dyeMesh.program.uniforms.tField.value = this.field.read.texture;
+    this.dyeMesh.program.uniforms.tMap.value = this.tMap;
+    this.blit(this.dyeMesh, this.dye.write);
+    this.dye.swap();
 
     // 6. Display to screen.
     this.displayMesh.program.uniforms.tField.value = this.field.read.texture;
-    this.displayMesh.program.uniforms.tDisp.value = this.disp.read.texture;
+    this.displayMesh.program.uniforms.tDye.value = this.dye.read.texture;
     this.displayMesh.program.uniforms.tMap.value = this.tMap;
     this.displayMesh.program.uniforms.uTime.value = this.time;
     this.displayMesh.program.uniforms.uCalm.value = this.calm;
