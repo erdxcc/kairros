@@ -51,27 +51,36 @@ void splat(vec4 t, vec2 p, float uAspect, float uTime, inout vec2 vel, inout flo
   vec2 ndir = dir / speed;
   vec2 side = vec2(-ndir.y, ndir.x);
 
-  // Inject slightly ahead of the cursor, scaled by speed.
-  vec2 lead = vec2(t.x * uAspect, t.y) + ndir * (0.03 + speed * 0.6);
+  // Sit the contact patch essentially UNDER the cursor, with only a small forward
+  // bias that grows with speed — the effect is "a fingertip on silk", not a splat
+  // thrown ahead of the cursor.
+  vec2 lead = vec2(t.x * uAspect, t.y) + ndir * (0.006 + speed * 0.1);
   vec2 d = p - lead;
 
   float along = dot(d, ndir);
   float across = dot(d, side);
 
-  // Anisotropic falloff: longer, fading tail behind the head.
-  // radius is the WIDTH knob — the footprint of each splat (and so the width of
-  // the visible distortion, trail and dye). Lower = narrower, tighter to cursor.
+  // Footprint of each splat. radius is the WIDTH knob — the footprint of each splat
+  // (and so the width of the visible distortion, trail and dye). The patch STRETCHES
+  // along the direction of motion as the cursor speeds up (alongR grows with speed)
+  // — like a fingertip dragged faster over silk leaves a longer press — while
+  // staying tight ACROSS. It is symmetric along the axis (a balanced oval that
+  // elongates with speed), NOT a one-sided comet tail.
   float radius = 0.008 + speed * 0.007;
-  float tail = along < 0.0 ? 2.6 : 1.0;
+  float alongR = radius * (1.0 + speed * 5.0);
   float shaped =
-    (along * along) / (radius * radius * tail * tail) +
+    (along * along) / (alongR * alongR) +
     (across * across) / (radius * radius * 0.5);
   float head = exp(-shaped);
 
-  // Running ripples down the streak + soft side bands.
-  float ripple = 0.65 + 0.35 * sin(along / radius * 6.2832 - uTime * 9.0);
+  // A single gentle undulation down the streak + soft side bands. The modulation
+  // is low-frequency and shallow on purpose: silk doesn't carry a train of ripples,
+  // so the contact reads as ONE clean fold, not a ghost-comb of ridges. Scaled by
+  // alongR so it's ~one undulation across the (speed-stretched) patch. The bands
+  // fall off with abs(along) so they stay tight around the head (no backward streak).
+  float ripple = 0.82 + 0.18 * sin(along / alongR * 3.0 - uTime * 6.0);
   float bands = exp(-(across * across) / (radius * radius * 0.14)) *
-                exp(-max(along, 0.0) / (radius * 2.0)) * 0.6;
+                exp(-abs(along) / (radius * 2.0)) * 0.6;
   float amp = head * ripple + bands;
 
   // A little curl so the push shears instead of going perfectly straight.
@@ -344,6 +353,77 @@ void main() {
 }
 `;
 
+/* 5c. RIPPLE — capillary "micro-waves" (Part D). A damped 2D wave equation run on
+ * its own ping-pong field, independent of the incompressible flow solver above.
+ * Incompressible 2D flow gives swirl/drape but NOT surface ripples — those are a
+ * height-field/wave phenomenon, so we add a real wave field here. The energetic
+ * flow pokes the surface; the second-order integration (h depends on h AND its
+ * previous value) gives the waves INERTIA, so they keep travelling and oscillating
+ * after the cursor stops — the watery ripple the silk lacked. R = current height,
+ * G = previous height (so one texture carries the whole second-order state). */
+export const RIPPLE = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 fragColor;
+
+uniform sampler2D tRipple; // R = height, G = previous height
+uniform sampler2D tField;  // velocity (RG) + energy (B)
+uniform vec2 uTexel;
+uniform float uSpeed; // wave propagation (CFL: keep <= 0.5 or it blows up)
+uniform float uDamp;  // per-frame damping (<1); closer to 1 = ripples linger
+uniform float uForce; // how hard the energetic flow pokes the surface
+
+void main() {
+  vec4 s = texture(tRipple, vUv);
+  float h = s.r;
+  float hPrev = s.g;
+
+  // Laplacian from the 4 neighbours' current height.
+  float l = texture(tRipple, vUv - vec2(uTexel.x, 0.0)).r;
+  float r = texture(tRipple, vUv + vec2(uTexel.x, 0.0)).r;
+  float b = texture(tRipple, vUv - vec2(0.0, uTexel.y)).r;
+  float t = texture(tRipple, vUv + vec2(0.0, uTexel.y)).r;
+  float lap = (l + r + b + t) - 4.0 * h;
+
+  // Second-order wave step: the (h - hPrev) term is the surface's momentum, so a
+  // disturbance radiates outward and keeps ringing — micro-waves by inertia.
+  float hNew = (2.0 * h - hPrev) + uSpeed * lap;
+
+  // Bias the poke a little BEHIND the fingertip: read the local flow direction
+  // (= cursor motion) and sample the energy slightly AHEAD of this texel, so the
+  // disturbance lands behind the finger. The fabric springs up behind the tip — a
+  // wake travelling OPPOSITE the motion — instead of only bulging to the sides.
+  vec2 vHere = texture(tField, vUv).xy;
+  vec2 fdir = length(vHere) > 1e-4 ? normalize(vHere) : vec2(0.0);
+  vec2 c = vUv + fdir * uTexel * 10.0;
+
+  // Broad, smooth poke so the surface is driven at a single LONG wavelength → ONE
+  // broad swell with a long radius, not a sharp poke that rings into many short
+  // ripples. rw sets the wave's RADIUS; uSpeed how fast it travels; uDamp how far.
+  vec2 rw = uTexel * 14.0;
+  float e = texture(tField, c).b * 2.0;
+  e += texture(tField, c + vec2( rw.x, 0.0) * 0.5).b;
+  e += texture(tField, c + vec2(-rw.x, 0.0) * 0.5).b;
+  e += texture(tField, c + vec2(0.0,  rw.y) * 0.5).b;
+  e += texture(tField, c + vec2(0.0, -rw.y) * 0.5).b;
+  e += texture(tField, c + vec2( rw.x, 0.0)).b;
+  e += texture(tField, c + vec2(-rw.x, 0.0)).b;
+  e += texture(tField, c + vec2(0.0,  rw.y)).b;
+  e += texture(tField, c + vec2(0.0, -rw.y)).b;
+  float energy = clamp(e / 10.0, 0.0, 2.0);
+  hNew += smoothstep(0.04, 0.5, energy) * uForce;
+
+  // Light diffusion toward the neighbour average → keeps the sheet smooth and kills
+  // grid-scale lumps ("комочки"); silk is flat, not bumpy.
+  hNew = mix(hNew, (l + r + b + t) * 0.25, 0.08);
+
+  hNew *= uDamp;
+  hNew = clamp(hNew, -3.0, 3.0); // guard against any numerical runaway
+
+  fragColor = vec4(hNew, h, 0.0, 1.0);
+}
+`;
+
 /* 6. DISPLAY — distort the base tMap by the velocity field (energy-masked) + idle
  * wind, layer trail / smoke / oil shimmer / a faint chromatic shift, kept dark. */
 export const DISPLAY = /* glsl */ `#version 300 es
@@ -361,6 +441,10 @@ uniform float uWind;
 uniform float uCalm;
 uniform float uDyeMix;
 uniform float uMaxFold; // hard cap on the fold offset (UV) — keeps the smear local
+uniform sampler2D tRipple;  // micro water-wave height field (R = height)
+uniform vec2 uTexel;
+uniform float uRipple;      // refraction strength of the ripple slopes
+uniform float uRippleShade; // how strongly the wave flanks darken (depth — matches the fold)
 
 // Soft, slow, swirly field used as the idle "wind" that ripples the silk. Lower
 // spatial frequencies = larger, more readable billows; faster time = livelier.
@@ -377,14 +461,16 @@ void main() {
   float speed = length(vel);
   vec2 dir = speed > 1e-5 ? vel / speed : vec2(0.0);
 
-  // Energy mask: 0 in calm zones, ramps to 1 only where the field is energetic
-  // (right around the cursor). This gates EVERY velocity-driven distortion so the
-  // corners of the screen hold perfectly still on a slow drag. The time-based
-  // wind / oil shimmer below is deliberately left UNmasked — that's the ambient
-  // "wind" we want to keep.
-  float mask = smoothstep(0.04, 0.3, energy);
+  // Energy mask: 0 in calm zones, ramps to 1 only where the field is energetic.
+  // Threshold raised (was 0.04..0.3) so the velocity fold shows ONLY right under the
+  // cursor — the localized "depth" of the fingertip — and does NOT linger along the
+  // path as a trail. The lingering wake is now the job of the slow wave, not the
+  // fold. The time-based wind / oil shimmer below stays UNmasked (ambient).
+  float mask = smoothstep(0.12, 0.4, energy);
 
-  // Idle "wind": ambient time-based ripple, always on, hushed while dragging.
+  // Idle "wind": ambient time-based ripple, always on. uCalm is pinned to 1 so the
+  // wind no longer hushes during movement — the background holds one steady state
+  // instead of "compressing" as the wind faded out and back in on every drag.
   vec2 wind = windField(vUv, uTime) * uWind * uCalm;
 
   // Velocity displacement vector, MAGNITUDE-CAPPED so the fold always stays local.
@@ -398,6 +484,35 @@ void main() {
   if (gvl > uMaxFold) gv *= uMaxFold / gvl;
 
   vec2 dUv = vUv - gv * (0.05 + energy * 0.9) - wind;
+
+  // Ripple refraction: the dedicated wave field's height gradient bends the silk
+  // surface. Applied to dUv BEFORE every sample below, so the whole surface (base,
+  // trail, smoke, oil, chroma) ripples together. Kept small (uRipple) for balance.
+  // The offset is hard-capped so the waves always read as MICRO ripples and can
+  // never tear the texture, however energetic the wave field gets.
+  //
+  // Sampled at the TRUE cursor coordinate (vUv), NOT wind-shifted. The ripple is a
+  // cursor-driven effect and must sit exactly under the cursor; the ambient wind
+  // drifts only the base silk. Coupling the ripple to the wind pushed the effect
+  // off the cursor by the wind offset (several %). The waves are tied to the fold
+  // by SHADING below (shared depth), not by sharing the wind drift.
+  vec2 rUv = vUv;
+  float rl = texture(tRipple, rUv - vec2(uTexel.x, 0.0)).r;
+  float rr = texture(tRipple, rUv + vec2(uTexel.x, 0.0)).r;
+  float rb = texture(tRipple, rUv - vec2(0.0, uTexel.y)).r;
+  float rt = texture(tRipple, rUv + vec2(0.0, uTexel.y)).r;
+  vec2 rGrad = vec2(rr - rl, rt - rb);
+  vec2 rippleOff = rGrad * uRipple;
+  float rol = length(rippleOff);
+  if (rol > 0.012) rippleOff *= 0.012 / rol;
+  dUv -= rippleOff;
+
+  // Ripple depth: darken the wave flanks toward the SAME dark tone the fold and
+  // the global overlay use, so the waves carry the silk's darkening and read as ONE
+  // surface with the cursor fold instead of a flat, un-shaded refraction layer.
+  // Luminance only (existing dark tone) → no new colours.
+  float rippleShade = clamp(length(rGrad) * uRippleShade, 0.0, 0.15);
+
   vec3 color = texture(tMap, dUv).rgb;
 
   // Trail: a few samples dragged along the (capped) flow — silky smear, local.
@@ -423,18 +538,26 @@ void main() {
   vec3 chromaCol = vec3(r, color.g, b);
 
   vec3 outColor = color;
-  outColor = mix(outColor, trail, 0.28 * clamp(energy * 1.4, 0.0, 1.0));
-  outColor = mix(outColor, smoke, 0.82 * clamp(energy, 0.0, 1.0));
+  outColor = mix(outColor, trail, 0.2 * clamp(energy * 1.4, 0.0, 1.0));
+  // Smoke darkening greatly reduced (was 0.82): the star of the effect is the FABRIC
+  // BENDING (refraction of the bright silk by the fold + wave), not a dark blob under
+  // the cursor. Keep just a hint of depth so the fold still reads.
+  outColor = mix(outColor, smoke, 0.3 * clamp(energy, 0.0, 1.0));
   outColor = mix(outColor, oil, 0.2 * clamp(energy * 1.2, 0.0, 1.0));
   outColor = mix(outColor, chromaCol, (0.02 + speed * 0.12) * mask);
 
   // Fluid memory (Part C): advected dye that lingers where the flow carried
   // material and dissolves slowly. Gated by its own density (A), NOT by energy,
   // so the wake stays visible AFTER the cursor stops — this is what kills the
-  // "snaps straight back to the source" feel. Sampled with the ambient wind so
-  // the memory layer breathes too. Calm corners never accumulate dye → stay clean.
-  vec4 dye = texture(tDye, vUv - wind);
+  // "snaps straight back to the source" feel. Sampled at the TRUE cursor coordinate
+  // (vUv, not wind-shifted) so the wake stays exactly where the cursor drew it
+  // instead of drifting off with the wind. Calm corners never accumulate dye.
+  vec4 dye = texture(tDye, vUv);
   outColor = mix(outColor, dye.rgb, clamp(dye.a, 0.0, 1.0) * uDyeMix);
+
+  // Ripple depth: shade the waves to match the fold's darkening (computed above) so
+  // the two read as one silk surface. Same dark tone as the overlay → no new hue.
+  outColor = mix(outColor, vec3(0.027, 0.027, 0.043), rippleShade);
 
   // Keep it dark.
   outColor = mix(outColor, vec3(0.027, 0.027, 0.043), uBlackOverlay);

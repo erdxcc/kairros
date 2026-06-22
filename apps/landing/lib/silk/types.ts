@@ -29,6 +29,13 @@ export interface Pointer {
   /** Smoothed velocity (aspect-corrected units per frame). */
   vx: number;
   vy: number;
+  /**
+   * Inertial velocity fed to the field: rises instantly with {@link vx}/{@link vy}
+   * while moving, but decays over a few frames when the cursor stops, so the silk
+   * coasts a little further along the stroke (end-of-move follow-through).
+   */
+  ivx: number;
+  ivy: number;
   /** Raw target position the smoothed value chases. */
   targetX: number;
   targetY: number;

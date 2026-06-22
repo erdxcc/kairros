@@ -8,6 +8,7 @@ import {
   PRESSURE,
   PROJECT,
   DYE,
+  RIPPLE,
   DISPLAY,
 } from "./shaders";
 import { createPaletteCanvas, DEFAULT_PALETTE } from "./palette";
@@ -21,7 +22,7 @@ const POINTER_LERP = 0.2;
 
 // Solver "feel" tunables (Part B — inertia & physical settling).
 const VISCOSITY = 0.18; //          ADVECT smoothing: low = more vortices, higher = fewer lumps
-const VORTICITY_STRENGTH = 0.2; //  vorticity-confinement strength (energy-gated, no calm-zone lumps)
+const VORTICITY_STRENGTH = 0.12; // vorticity-confinement strength; lowered so the silk fold stays flat/smooth (less swirl = fewer lumps now that the darkening no longer hides them)
 const MAX_VEL = 3.0; //             clamp on field velocity magnitude (stops inertial runaway)
 const MAX_FOLD = 0.03; //           hard cap on the DISPLAY fold offset in UV (no screen-spanning tails)
 
@@ -29,10 +30,22 @@ const MAX_FOLD = 0.03; //           hard cap on the DISPLAY fold offset in UV (n
 const DYE_ADVECT = 0; //        0 = trace stays where the cursor passed (no flow-carried tails); >0 drifts
 const DYE_DECAY = 0.99; //      slow dissolve per frame: closer to 1 = longer-lasting wake
 const DYE_INJECT = 0.12; //     how much new silk the energetic flow deposits per frame
-const DYE_MIX = 0.5; //         how strongly the lingering dye shows over the base
-const WIND_STRENGTH = 0.04; //  idle wind ripple amplitude
-const CALM_THRESHOLD = 0.004; // pointer speed above which the wind is hushed
-const CALM_SMOOTH = 0.04; //    how fast the wind ramps in / out
+const DYE_MIX = 0.0; //         OFF: the dye is the long cursor trail we don't want — the slow wave does all the trail work now (raise >0 to bring the memory trail back)
+const WIND_STRENGTH = 0.04; //  idle wind ripple amplitude (always on — never hushed by cursor movement)
+
+// Pointer follow-through: fraction of the last motion retained per frame after the
+// cursor stops. Higher = the silk coasts further along the direction of travel
+// before settling (end-of-stroke inertia). 0 = cut to zero at once (old behaviour).
+const POINTER_INERTIA = 0.84;
+
+// Ripple wave field (capillary "micro-waves", Part D) — a damped 2D wave equation
+// layered over the silk so the surface ripples like water and keeps oscillating by
+// inertia. Tune these for the silk<->water balance.
+const RIPPLE_SPEED = 0.22; //    how fast the single wave travels; raised so it reads like real springy silk, not slow water (keep <= 0.5 CFL)
+const RIPPLE_DAMP = 0.97; //     DISTANCE knob: closer to 1 = the wave carries further. Lowered a touch so the wake MOVES away instead of lingering as a static trail. Wave radius/count is set by the broad poke in the RIPPLE shader, not here.
+const RIPPLE_FORCE = 0.025; //   how hard the cursor wake pokes the surface (amplitude of the single broad wave)
+const RIPPLE_DISTORT = 0.6; //   refraction strength of the wave (display pass; offset is capped at 0.012 UV)
+const RIPPLE_SHADE = 1.0; //     subtle wave-flank darkening for depth (kept low — the effect is bending, not darkening; display cap 0.15)
 
 type GL = Renderer["gl"];
 
@@ -64,6 +77,7 @@ export class SilkField {
   private field!: DoubleFBO;
   private pressure!: DoubleFBO;
   private dye!: DoubleFBO;
+  private ripple!: DoubleFBO;
   private divergence!: RenderTarget;
   private tMap!: Texture;
 
@@ -74,6 +88,7 @@ export class SilkField {
   private pressureMesh!: Mesh;
   private projectMesh!: Mesh;
   private dyeMesh!: Mesh;
+  private rippleMesh!: Mesh;
   private displayMesh!: Mesh;
 
   private touch = new Float32Array(POINTER_COUNT * 4);
@@ -84,7 +99,7 @@ export class SilkField {
   private time = 0;
   private lastFrame = 0;
   private aspect = 1;
-  private calm = 1; // 0..1, 1 when the pointer is idle (drives the wind)
+  private calm = 1; // wind strength multiplier, pinned to 1 so the idle wind never stops
 
   private mounted = false;
   private visible = true;
@@ -218,6 +233,8 @@ export class SilkField {
       y: 0.5,
       vx: 0,
       vy: 0,
+      ivx: 0,
+      ivy: 0,
       targetX: 0.5,
       targetY: 0.5,
       inside: false,
@@ -262,6 +279,7 @@ export class SilkField {
     this.field = this.makeDoubleFBO();
     this.pressure = this.makeDoubleFBO();
     this.dye = this.makeDoubleFBO();
+    this.ripple = this.makeDoubleFBO();
     this.divergence = this.makeFBO();
     // Zero everything so the half-float buffers never start with garbage/NaN.
     this.clearTarget(this.field.read);
@@ -270,6 +288,8 @@ export class SilkField {
     this.clearTarget(this.pressure.write);
     this.clearTarget(this.dye.read, 0);
     this.clearTarget(this.dye.write, 0);
+    this.clearTarget(this.ripple.read, 0);
+    this.clearTarget(this.ripple.write, 0);
     this.clearTarget(this.divergence);
   }
 
@@ -355,10 +375,23 @@ export class SilkField {
       uInject: { value: DYE_INJECT },
     });
 
+    this.rippleMesh = this.makeMesh(RIPPLE, {
+      tRipple: { value: null },
+      tField: { value: null },
+      uTexel: { value: texel },
+      uSpeed: { value: RIPPLE_SPEED },
+      uDamp: { value: RIPPLE_DAMP },
+      uForce: { value: RIPPLE_FORCE },
+    });
+
     this.displayMesh = this.makeMesh(DISPLAY, {
       tField: { value: null },
       tDye: { value: null },
       tMap: { value: null },
+      tRipple: { value: null },
+      uTexel: { value: texel },
+      uRipple: { value: RIPPLE_DISTORT },
+      uRippleShade: { value: RIPPLE_SHADE },
       uDistortion: { value: this.opts.distortion },
       uBlackOverlay: { value: this.opts.blackOverlayAlpha },
       uTime: { value: 0 },
@@ -419,7 +452,6 @@ export class SilkField {
   }
 
   private updatePointers(): void {
-    let activity = 0;
     for (let i = 0; i < POINTER_COUNT; i++) {
       const p = this.pointers[i]!;
       const prevX = p.x;
@@ -429,22 +461,28 @@ export class SilkField {
       p.vx = p.x - prevX;
       p.vy = p.y - prevY;
 
+      // Follow-through (end-of-stroke inertia): the velocity fed to the field
+      // snaps to the live motion while the cursor moves (crisp drag, unchanged),
+      // but when it slows or stops it decays over several frames instead of
+      // cutting to zero — so the field keeps getting a fading push in the last
+      // direction and the silk coasts a little further along the stroke.
+      p.ivx = Math.abs(p.vx) >= Math.abs(p.ivx) ? p.vx : p.ivx * POINTER_INERTIA;
+      p.ivy = Math.abs(p.vy) >= Math.abs(p.ivy) ? p.vy : p.ivy * POINTER_INERTIA;
+
       const base = i * 4;
       const active = p.inside ? 1 : 0;
       this.touch[base] = p.x;
       this.touch[base + 1] = p.y;
       // Aspect-correct velocity so direction matches the squashed grid; zero it
-      // out when the pointer isn't engaged so the splat fades cleanly.
-      this.touch[base + 2] = p.vx * this.aspect * active;
-      this.touch[base + 3] = p.vy * active;
-
-      if (active) activity = Math.max(activity, Math.hypot(p.vx, p.vy));
+      // out when the pointer isn't engaged so the splat fades cleanly. Uses the
+      // inertial velocity so the coast keeps feeding the field after the cursor
+      // stops; the shader deadzone ends it once it decays below a pixel.
+      this.touch[base + 2] = p.ivx * this.aspect * active;
+      this.touch[base + 3] = p.ivy * active;
     }
 
-    // Smoothly track how "calm" the pointer is so the wind ramps in when the
-    // cursor settles and is hushed while the user is actively dragging.
-    const targetCalm = 1 - Math.min(activity / CALM_THRESHOLD, 1);
-    this.calm += (targetCalm - this.calm) * CALM_SMOOTH;
+    // Wind is pinned on (this.calm stays 1): no calm tracking, so the idle wind
+    // never hushes during movement and the background holds one steady state.
 
     // Mirror the packed touch buffer into the 8 individual vec4 uniforms.
     const u = this.injectMesh.program.uniforms;
@@ -534,9 +572,17 @@ export class SilkField {
     this.blit(this.dyeMesh, this.dye.write);
     this.dye.swap();
 
+    // 5c. Ripple wave field: a damped 2D wave equation poked by the energetic flow,
+    // adding the travelling/oscillating micro-waves (watery shimmer) over the silk.
+    this.rippleMesh.program.uniforms.tRipple.value = this.ripple.read.texture;
+    this.rippleMesh.program.uniforms.tField.value = this.field.read.texture;
+    this.blit(this.rippleMesh, this.ripple.write);
+    this.ripple.swap();
+
     // 6. Display to screen.
     this.displayMesh.program.uniforms.tField.value = this.field.read.texture;
     this.displayMesh.program.uniforms.tDye.value = this.dye.read.texture;
+    this.displayMesh.program.uniforms.tRipple.value = this.ripple.read.texture;
     this.displayMesh.program.uniforms.tMap.value = this.tMap;
     this.displayMesh.program.uniforms.uTime.value = this.time;
     this.displayMesh.program.uniforms.uCalm.value = this.calm;
