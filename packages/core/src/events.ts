@@ -96,7 +96,7 @@ class ByteReader {
     private ensure(byteCount: number): void {
         if (this.offset + byteCount > this.bytes.byteLength) {
             throw new Error(
-                `Event payload length mismatch: needed ${byteCount} bytes at offset ${this.offset}, payload is ${this.bytes.byteLength} bytes. The on-chain event layout may have changed — update the decoders and fixtures.`,
+                `Event payload length mismatch: needed ${byteCount} bytes at offset ${this.offset}, payload is ${this.bytes.byteLength} bytes. The on-chain event layout may have changed: update the decoders and fixtures.`,
             );
         }
     }
@@ -125,7 +125,7 @@ class ByteReader {
     expectExhausted(kind: string): void {
         if (this.offset !== this.bytes.byteLength) {
             throw new Error(
-                `Event payload length mismatch for ${kind}: read ${this.offset} of ${this.bytes.byteLength} bytes. The on-chain event layout may have changed — update the decoders and fixtures.`,
+                `Event payload length mismatch for ${kind}: read ${this.offset} of ${this.bytes.byteLength} bytes. The on-chain event layout may have changed: update the decoders and fixtures.`,
             );
         }
     }
@@ -230,7 +230,7 @@ export function decodeEventData(data: Uint8Array): KairosChainEvent | undefined 
         }
         default:
             throw new Error(
-                `Unknown event kind ${kind} — a new event type was likely added upstream. Update EventKind and the decoders.`,
+                `Unknown event kind ${kind}: a new event type was likely added upstream. Update EventKind and the decoders.`,
             );
     }
 }

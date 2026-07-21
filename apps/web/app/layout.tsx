@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Providers } from './providers';
 import './globals.css';
 
-// Fira Sans for UI, Fira Code for numbers/addresses — a typeface pairing tuned
+// Fira Sans for UI, Fira Code for numbers/addresses: a typeface pairing tuned
 // for data dashboards. Self-hosted by next/font (no runtime request to Google).
 const firaSans = Fira_Sans({
     subsets: ['latin'],
@@ -19,7 +19,7 @@ const firaCode = Fira_Code({
 });
 
 export const metadata = {
-    title: 'kairos — merchant dashboard',
+    title: 'kairos: merchant dashboard',
     description: 'Open-source merchant billing layer for the native Solana Subscriptions program.',
 };
 

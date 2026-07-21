@@ -34,7 +34,7 @@ export function CodeBlock({ tabs }: { tabs: CodeTab[] }) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard unavailable (e.g. insecure context) — silently ignore.
+      // Clipboard unavailable (e.g. insecure context): silently ignore.
     }
   };
 

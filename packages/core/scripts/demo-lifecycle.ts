@@ -6,7 +6,7 @@
  *   2. subscriber initSubscriptionAuthority   (once per user+mint)
  *   3. subscriber subscribe
  *   4. puller     transferSubscription (the service billing key pulls a charge)
- *   5. puller     transferSubscription again — expected to FAIL (period amount cap, error 400)
+ *   5. puller     transferSubscription again: expected to FAIL (period amount cap, error 400)
  *   6. subscriber cancelSubscription   (grace-period semantics probe)
  *   7. subscriber resumeSubscription
  *
@@ -126,7 +126,7 @@ async function main() {
         .getAccountInfo(authorityPda, { encoding: 'base64' })
         .send();
     if (authorityAccount) {
-        console.log(`authority ${authorityPda} already initialized — skipping`);
+        console.log(`authority ${authorityPda} already initialized, skipping`);
     } else {
         const initResult = await withRetry(() =>
             subscriber.subscriptions.instructions
@@ -183,7 +183,7 @@ async function main() {
         `balances after:  subscriber=${await tokenBalance(subscriberAta)} merchant=${await tokenBalance(merchantAta)}`,
     );
 
-    // 5. Second charge in same period — must fail -------------------------------
+    // 5. Second charge in same period: must fail -------------------------------
     logStep('5. puller: transferSubscription again (expect failure)');
     await sleep(1500);
     try {

@@ -1,9 +1,9 @@
 /**
- * kairos database schema (Drizzle, PostgreSQL dialect — works on both real
+ * kairos database schema (Drizzle, PostgreSQL dialect, works on both real
  * Postgres and embedded PGlite).
  *
  * Design rule: everything on-chain-derived (`chain_events`, `plans`,
- * `subscriptions`, on-chain `charges`) is a rebuildable projection — the chain
+ * `subscriptions`, on-chain `charges`) is a rebuildable projection: the chain
  * is the source of truth. Off-chain-only truth (failed charge attempts later,
  * outbox, cursors) lives here exclusively.
  *
@@ -67,7 +67,7 @@ export const subscriptions = pgTable('subscriptions', {
     planPda: text('plan_pda').notNull(),
     subscriber: text('subscriber').notNull(),
     mint: text('mint').notNull(),
-    /** 'active' | 'cancelled' — cancelled means expiry is scheduled on-chain. */
+    /** 'active' | 'cancelled': cancelled means expiry is scheduled on-chain. */
     status: text('status').notNull(),
     createdTs: bigint('created_ts', { mode: 'bigint' }).notNull(),
     currentPeriodStartTs: bigint('current_period_start_ts', { mode: 'bigint' }).notNull(),
@@ -81,7 +81,7 @@ export const subscriptions = pgTable('subscriptions', {
 /**
  * Charge history. Rows with a signature mirror successful on-chain transfers
  * (1:1 with a chain_events row). Failed attempts (recorded by the billing
- * worker from Phase 2 on) have no signature — they never reach the chain.
+ * worker from Phase 2 on) have no signature: they never reach the chain.
  */
 export const charges = pgTable(
     'charges',
@@ -128,7 +128,7 @@ export const outbox = pgTable('outbox', {
 /** Merchant webhook endpoints (registered via the API; one secret each). */
 export const webhookEndpoints = pgTable('webhook_endpoints', {
     id: serial('id').primaryKey(),
-    /** Merchant wallet pubkey — webhook events are routed by plan owner. */
+    /** Merchant wallet pubkey: webhook events are routed by plan owner. */
     merchant: text('merchant').notNull(),
     url: text('url').notNull(),
     secret: text('secret').notNull(),

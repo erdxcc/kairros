@@ -2,9 +2,9 @@
 
 Base path: `/api/v1`. All responses are JSON; token amounts and timestamps are
 strings (u64-safe). Every data endpoint is scoped to the authenticated
-merchant — the wallet that owns the plans.
+merchant: the wallet that owns the plans.
 
-## Authentication — Sign-In-With-Solana
+## Authentication: Sign-In-With-Solana
 
 No passwords. The merchant proves control of their wallet by signing a
 server-issued message; the server returns a 24h session JWT.
@@ -58,11 +58,11 @@ span multiple mints, `mints` lists them so the client can format/segment.
 
 ## Configuration
 
-- `DATABASE_URL` — Postgres connection string (required; the API does not run
+- `DATABASE_URL`: Postgres connection string (required; the API does not run
   on PGlite). Run `pnpm db:migrate` once against it.
-- `AUTH_SECRET` — HMAC secret for nonce and session JWTs. Required in
+- `AUTH_SECRET`: HMAC secret for nonce and session JWTs. Required in
   production; a dev fallback is used otherwise.
-- `AUTH_DOMAIN` — domain shown in the SIWS message (defaults to the request host).
+- `AUTH_DOMAIN`: domain shown in the SIWS message (defaults to the request host).
 
 ## Notes
 

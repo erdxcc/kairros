@@ -2,7 +2,7 @@
  * Integration tests for the API logic layer (auth + queries), run against an
  * in-memory PGlite database under vitest. This exercises the same functions
  * the route handlers call; the routes themselves are thin auth-check + json
- * wrappers. (PGlite runs here because vitest is a plain Node process — it is
+ * wrappers. (PGlite runs here because vitest is a plain Node process, it is
  * NOT used inside the Next.js server, which requires postgres://.)
  */
 import { type KairosDb, buildSignInMessage, createDb, dbSchema } from '@kairos/core';

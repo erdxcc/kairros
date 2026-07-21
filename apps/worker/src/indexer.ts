@@ -3,7 +3,7 @@
  *
  * Reliability model (polling-first, no WebSockets):
  *   - `getSignaturesForAddress(program, { until: cursor })` finds everything
- *     since the last fully processed signature — nothing is missed across
+ *     since the last fully processed signature: nothing is missed across
  *     restarts, and a fresh database backfills through the same code path.
  *   - Signatures are processed oldest-first; the cursor advances only after
  *     a signature is fully ingested (idempotent inserts make replays safe).

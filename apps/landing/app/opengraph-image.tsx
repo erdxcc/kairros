@@ -53,7 +53,7 @@ export default function OpengraphImage() {
             Subscriptions and allowances, settled on-chain.
           </div>
           <div style={{ fontSize: "30px", color: "#8a8a99" }}>
-            The billing layer for Solana — non-custodial, settled in seconds.
+            The billing layer for Solana: non-custodial, settled in seconds.
           </div>
         </div>
       </div>

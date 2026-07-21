@@ -23,7 +23,7 @@ import {
     withRetry,
 } from './shared.js';
 
-const PLAN_AMOUNT = 2_000_000_000n; // 2,000 devUSDC — far above the subscriber's balance
+const PLAN_AMOUNT = 2_000_000_000n; // 2,000 devUSDC: far above the subscriber's balance
 
 const config = loadConfig();
 const env = readDevnetEnv(config.keysDir);

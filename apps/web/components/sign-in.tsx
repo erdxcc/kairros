@@ -25,7 +25,7 @@ export function SignIn() {
             await signIn(detected);
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Sign-in failed';
-            // Declining the signature is a choice, not an error — return to idle quietly.
+            // Declining the signature is a choice, not an error: return to idle quietly.
             if (!/reject|denied|cancel|user/i.test(message)) setError(message);
         } finally {
             setPending(null);

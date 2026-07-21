@@ -1,6 +1,6 @@
 import { getBase58Decoder } from '@solana/kit';
 /**
- * Browser wallet integration via the Wallet Standard — no legacy web3.js.
+ * Browser wallet integration via the Wallet Standard: no legacy web3.js.
  *
  * We enumerate registered wallets, connect to get the user's account (whose
  * `address` is the base58 pubkey), and sign the server's SIWS message with the

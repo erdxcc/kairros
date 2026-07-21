@@ -100,7 +100,7 @@ async function main() {
             console.log(`[mint] reusing devUSDC mint ${mintAddress}`);
         }
     } catch {
-        // no summary yet — create a fresh mint below
+        // no summary yet: create a fresh mint below
     }
 
     if (!mintAddress) {
@@ -127,7 +127,7 @@ async function main() {
                 mint: newMint.address,
                 owner: merchant.address,
                 mintAuthority: payer,
-                amount: 1_000_000n, // 1 devUSDC — creates the merchant's receiving ATA
+                amount: 1_000_000n, // 1 devUSDC: creates the merchant's receiving ATA
                 decimals: DECIMALS,
             })
             .sendTransaction();

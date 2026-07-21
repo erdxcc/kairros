@@ -1,9 +1,9 @@
-# Brand — kairos
+# Brand: kairos
 
 _Status: active_
 
 kairos is an open-source merchant billing layer for the native Solana
-Subscriptions program — "Stripe Billing for Solana." The product surface (the
+Subscriptions program: "Stripe Billing for Solana." The product surface (the
 merchant dashboard) should feel like a serious, trustworthy fintech tool, in the
 lineage of Stripe and Linear: calm, dark, dense-but-legible, never flashy.
 
@@ -35,7 +35,7 @@ Each semantic color has a `-soft` companion for low-emphasis badge fills.
 - **Sans** (`--font-sans`): **Fira Sans** (via `next/font`, self-hosted), with a
   system fallback. All prose and labels.
 - **Mono** (`--font-mono`): **Fira Code**, for addresses, signatures, and
-  money/numeric values that change — always paired with `tabular-nums` so digits
+  money/numeric values that change: always paired with `tabular-nums` so digits
   don't jitter. Fira is a data-dashboard pairing (per the ui-ux-pro-max
   recommendation for analytics/admin surfaces).
 - Scale leans small and tight: `text-xl` page titles, `text-sm` body, `text-xs`
@@ -45,8 +45,8 @@ Each semantic color has a `-soft` companion for low-emphasis badge fills.
 
 - Concise, active, specific. "No subscribers yet" not "There is currently no data."
 - Explain on-chain mechanics plainly where trust matters (e.g. the puller key
-  "can never redirect funds — destinations are immutable on-chain").
-- A user's wallet rejection is a state, not an error — never scold.
+  "can never redirect funds: destinations are immutable on-chain").
+- A user's wallet rejection is a state, not an error: never scold.
 
 ## Motion
 

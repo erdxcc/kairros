@@ -29,7 +29,7 @@ export async function ensurePlanRow(db: KairosDb, rpc: Rpc, planPda: Address): P
 
     const account = await fetchMaybePlan(rpc, planPda);
     if (!account.exists) {
-        // Plan was deleted (possible after expiry) — keep a tombstone so joins still work.
+        // Plan was deleted (possible after expiry): keep a tombstone so joins still work.
         await db
             .insert(dbSchema.plans)
             .values({

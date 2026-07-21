@@ -37,7 +37,7 @@ const allowance = await kairos.allowances.approve({
   period: "month",
 });
 
-// Revoke it any time — fully on-chain.
+// Revoke it any time: fully on-chain.
 await kairos.allowances.revoke(allowance.id);`,
   },
   {

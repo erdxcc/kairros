@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 const port = Number.parseInt(process.argv[2] ?? '8787', 10);
 const secret = process.env.WEBHOOK_SECRET ?? '';
 if (!secret) {
-    console.warn('WEBHOOK_SECRET not set — signatures will be reported as unverified.');
+    console.warn('WEBHOOK_SECRET not set, signatures will be reported as unverified.');
 }
 
 function verify(signatureHeader: string, body: string): boolean {
@@ -39,7 +39,7 @@ createServer((req, res) => {
         const verified = verify(signature, body);
         const event = JSON.parse(body || '{}');
         console.log(
-            `\n[receiver] ${event.type ?? '?'} (delivery ${req.headers['kairos-delivery'] ?? '?'}) — signature ${verified ? 'VALID ✔' : 'INVALID ✗'}`,
+            `\n[receiver] ${event.type ?? '?'} (delivery ${req.headers['kairos-delivery'] ?? '?'}): signature ${verified ? 'VALID ✔' : 'INVALID ✗'}`,
         );
         console.log(JSON.stringify(event.data ?? event, null, 2));
         res.writeHead(200, { 'content-type': 'application/json' });

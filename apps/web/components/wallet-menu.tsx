@@ -11,7 +11,7 @@ import { Spinner } from './ui';
  * Wallet sign-in as a top-right account control (replaces the full-screen gate).
  * Signed out → a "Connect wallet" button that drops down the detected wallets;
  * signed in → the merchant address with a sign-out menu. Reuses the same SIWS
- * handshake (lib/auth-client `signIn`) — no auth logic changes here.
+ * handshake (lib/auth-client `signIn`): no auth logic changes here.
  */
 export function WalletMenu() {
     const { session, signIn, signOut } = useAuth();

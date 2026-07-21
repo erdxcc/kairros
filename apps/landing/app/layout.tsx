@@ -8,8 +8,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: `${site.name} — Subscriptions and allowances, settled on-chain`,
-    template: `%s — ${site.name}`,
+    default: `${site.name}: Subscriptions and allowances, settled on-chain`,
+    template: `%s: ${site.name}`,
   },
   description: site.description,
   keywords: [...site.keywords],
@@ -20,12 +20,12 @@ export const metadata: Metadata = {
     type: "website",
     url: site.url,
     siteName: site.name,
-    title: `${site.name} — The billing layer for Solana`,
+    title: `${site.name}: The billing layer for Solana`,
     description: site.description,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${site.name} — The billing layer for Solana`,
+    title: `${site.name}: The billing layer for Solana`,
     description: site.description,
     creator: site.twitter,
   },

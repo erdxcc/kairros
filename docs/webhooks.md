@@ -44,7 +44,7 @@ More types arrive with the dunning milestone (`subscription.past_due`,
 
 Notes:
 
-- `id` is unique per event and stable across retries — use it for idempotency.
+- `id` is unique per event and stable across retries: use it for idempotency.
 - All token amounts are strings in base units (u64-safe). All `*Ts` fields are
   unix seconds as strings.
 - On-chain events carry the transaction `signature`; verify anything you like

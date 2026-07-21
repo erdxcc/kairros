@@ -1,5 +1,5 @@
 /**
- * kairos worker entry point — one process, four loops:
+ * kairos worker entry point: one process, four loops:
  *
  *   indexer     chain events -> projections + outbox    (Phase 1)
  *   scheduler   due subscriptions -> transferSubscription (Phase 2)
@@ -22,7 +22,7 @@ const intEnv = (name: string, fallback: number) => {
 
 async function main() {
     const config = loadConfig();
-    console.log(`kairos worker — cluster=${config.cluster} rpc=${config.rpcUrl}`);
+    console.log(`kairos worker, cluster=${config.cluster} rpc=${config.rpcUrl}`);
     console.log(`database: ${config.databaseUrl.replace(/\/\/.*@/, '//<redacted>@')}`);
 
     const db = await createDb(config.databaseUrl);

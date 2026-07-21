@@ -4,13 +4,13 @@
  * The original reference fed a raster art asset into the fluid; we have no such
  * asset, so we generate our own structural texture on a 2D canvas (one time) in
  * the brand palette and hand it to OGL as a Texture. This is the "image" the
- * fluid liquefies — NOT page content.
+ * fluid liquefies: NOT page content.
  *
  * The distortion in the DISPLAY shader samples tMap at offset UVs driven by the
  * velocity field: it only becomes visible where neighbouring pixels DIFFER. A
  * flat gradient has almost no local contrast, so the flow reads as nothing. We
- * therefore build a marbled, sheened field — dark overall, but with strong
- * internal light/shadow contrast — so the same velocity field produces visible
+ * therefore build a marbled, sheened field: dark overall, but with strong
+ * internal light/shadow contrast, so the same velocity field produces visible
  * silk folds.
  *
  * Layers (drawn back-to-front with blend modes):
@@ -40,22 +40,22 @@ const BASE_RGB = { r: 7, g: 7, b: 11 };
 const BLOB_COUNT = 7; //             number of radial blobs (fewer = calmer)
 const BLOB_MIN_RADIUS = 0.2; //     min blob radius as a fraction of width
 const BLOB_MAX_RADIUS = 0.52; //    max blob radius (larger = soft pool, not bubble)
-const BLOB_BRIGHTNESS_MIN = 0.06; // min blob opacity (0..1) — overall contrast
-const BLOB_BRIGHTNESS_MAX = 0.5; // max blob opacity (0..1) — lower = less "bubbly"
+const BLOB_BRIGHTNESS_MIN = 0.06; // min blob opacity (0..1): overall contrast
+const BLOB_BRIGHTNESS_MAX = 0.5; // max blob opacity (0..1): lower = less "bubbly"
 const DARK_BLOB_FRACTION = 0.38; // share of blobs that are shadows (multiply)
 const BLOB_EDGE_MARGIN = 0.14; //   keep blob centres this far from the edges
 
 // Diagonal sheen stripes (the silk highlight).
 const SHEEN_COUNT = 2; //           number of stripes (2–4)
-const SHEEN_CONTRAST = 0.4; //      stripe brightness (0..1) — fold visibility
+const SHEEN_CONTRAST = 0.4; //      stripe brightness (0..1): fold visibility
 const SHEEN_HALF_WIDTH = 0.04; //   half-width of each stripe along its axis
 
 // Low-frequency soft noise.
-const NOISE_STRENGTH = 0.07; //     noise opacity (0..1) — organic break-up
+const NOISE_STRENGTH = 0.07; //     noise opacity (0..1): organic break-up
 const NOISE_GRID_X = 24; //         coarse noise resolution (low = soft/large)
 const NOISE_GRID_Y = 14;
 
-// Edge calm — darken the borders so CLAMP_TO_EDGE doesn't streak bright pixels.
+// Edge calm: darken the borders so CLAMP_TO_EDGE doesn't streak bright pixels.
 const EDGE_CALM = 0.95;
 
 // --- Tiny seeded RNG + colour helpers ---------------------------------------
@@ -182,7 +182,7 @@ export function createPaletteCanvas(
   }
 
   // -- Layer 3: diagonal sheen stripes --------------------------------------
-  // Wide, soft, bright bands at a shallow diagonal — the signature silk gleam.
+  // Wide, soft, bright bands at a shallow diagonal: the signature silk gleam.
   // Alternating angle (±) keeps them from looking like parallel rails.
   const cx = W / 2;
   const cy = H / 2;

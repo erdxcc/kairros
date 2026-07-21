@@ -1,11 +1,11 @@
 /**
  * Database client factory supporting two drivers behind one URL:
  *
- *   - `postgres://...`  — real PostgreSQL via node-postgres. Required for the
- *                         web app (Next.js) and for running the worker and web
- *                         against one shared database.
- *   - `pglite://<dir>`  — embedded PGlite for single-process dev & tests
- *                         (worker, scripts, unit tests). `pglite://memory` is
+ *   - `postgres://...`: real PostgreSQL via node-postgres. Required for the
+ *                       web app (Next.js) and for running the worker and web
+ *                       against one shared database.
+ *   - `pglite://<dir>`: embedded PGlite for single-process dev & tests
+ *                       (worker, scripts, unit tests). `pglite://memory` is
  *                         in-memory. NOTE: PGlite is single-process and does
  *                         not run inside the Next.js server bundle, so the web
  *                         app always uses a `postgres://` URL.

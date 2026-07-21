@@ -2,7 +2,7 @@
  * Reconciler: periodically re-reads on-chain accounts behind our projections
  * and repairs drift. Two reasons this exists:
  *
- *   1. `updatePlan` emits NO event — plan status/pullers/metadata changes are
+ *   1. `updatePlan` emits NO event: plan status/pullers/metadata changes are
  *      invisible to the event indexer.
  *   2. Defense in depth: if the indexer ever skips an event (RPC pruning,
  *      bugs), the account state heals the projections.

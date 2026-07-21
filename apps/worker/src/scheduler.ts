@@ -3,7 +3,7 @@
  * puller key and executes `transferSubscription`.
  *
  * Truth model:
- *   - Success is never recorded here — the on-chain event lands via the
+ *   - Success is never recorded here: the on-chain event lands via the
  *     indexer, which writes the succeeded charge row. The chain is the only
  *     source of truth for money movement.
  *   - Failures never reach the chain (preflight catches them for free), so
@@ -155,7 +155,7 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
         let periodStart = 0n;
         let periodEnd = 0n;
         try {
-            // Recheck against the chain — projections may lag the indexer.
+            // Recheck against the chain: projections may lag the indexer.
             const onChain = await withRetry(() =>
                 fetchMaybeSubscriptionDelegation(opts.rpc, address(candidate.subscriptionPda)),
             );

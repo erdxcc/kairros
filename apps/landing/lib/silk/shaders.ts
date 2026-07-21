@@ -23,7 +23,7 @@ void main() {
 }
 `;
 
-/* 1. INJECT / FORCE — decay the field, then add each of the 8 pointers as an
+/* 1. INJECT / FORCE: decay the field, then add each of the 8 pointers as an
  * anisotropic, velocity-stretched splat with a lead, ripples and side bands. */
 export const INJECT = /* glsl */ `#version 300 es
 precision highp float;
@@ -52,7 +52,7 @@ void splat(vec4 t, vec2 p, float uAspect, float uTime, inout vec2 vel, inout flo
   vec2 side = vec2(-ndir.y, ndir.x);
 
   // Sit the contact patch essentially UNDER the cursor, with only a small forward
-  // bias that grows with speed — the effect is "a fingertip on silk", not a splat
+  // bias that grows with speed: the effect is "a fingertip on silk", not a splat
   // thrown ahead of the cursor.
   vec2 lead = vec2(t.x * uAspect, t.y) + ndir * (0.006 + speed * 0.1);
   vec2 d = p - lead;
@@ -60,10 +60,10 @@ void splat(vec4 t, vec2 p, float uAspect, float uTime, inout vec2 vel, inout flo
   float along = dot(d, ndir);
   float across = dot(d, side);
 
-  // Footprint of each splat. radius is the WIDTH knob — the footprint of each splat
+  // Footprint of each splat. radius is the WIDTH knob: the footprint of each splat
   // (and so the width of the visible distortion, trail and dye). The patch STRETCHES
   // along the direction of motion as the cursor speeds up (alongR grows with speed)
-  // — like a fingertip dragged faster over silk leaves a longer press — while
+  //, like a fingertip dragged faster over silk leaves a longer press, while
   // staying tight ACROSS. It is symmetric along the axis (a balanced oval that
   // elongates with speed), NOT a one-sided comet tail.
   float radius = 0.008 + speed * 0.007;
@@ -89,7 +89,7 @@ void splat(vec4 t, vec2 p, float uAspect, float uTime, inout vec2 vel, inout flo
   float strength = 22.0 + speed * 18.0;
   vel += push * amp * strength * 0.02;
   // Energy from RAW per-frame motion (not the sqrt-boosted speed): a slow drag
-  // stays a small LOCAL fold, fast saturates — this is what keeps a slow drag from
+  // stays a small LOCAL fold, fast saturates: this is what keeps a slow drag from
   // translating the whole screen, while DISPLAY masks the silk smear by energy.
   energy = max(energy, amp * raw * 100.0);
 }
@@ -118,17 +118,17 @@ void main() {
 }
 `;
 
-/* 2. ADVECT — semi-Lagrangian backtrace with only a whisper of viscosity.
+/* 2. ADVECT: semi-Lagrangian backtrace with only a whisper of viscosity.
  *
  * The old version followed the backtrace with a heavy multi-tap blur (4-neighbour
  * + diagonals + rings at 2 and 3 texels). That re-averaged the whole field every
  * frame and erased the vortices, so the flow died the instant the cursor stopped.
  * Now we keep the pure advection and mix in only a small share of the 4-neighbour
- * Laplacian (uViscosity) — just enough to suppress grid-scale noise/NaNs while
+ * Laplacian (uViscosity): just enough to suppress grid-scale noise/NaNs while
  * letting swirls survive. Vorticity confinement (pass 2b) then feeds back the
  * little curl this still costs. Velocity decays very slowly (0.999) so momentum
  * lingers; energy keeps its faster decay (0.992) so the visual still calms down.
- * Crucially, ONLY velocity is advected — energy is held in place, so the visible
+ * Crucially, ONLY velocity is advected: energy is held in place, so the visible
  * mark (and the dye it gates) stays where the cursor passed and never streaks out
  * to the borders on the long-lived flow. */
 export const ADVECT = /* glsl */ `#version 300 es
@@ -144,7 +144,7 @@ uniform float uMaxVel;    // clamp on velocity magnitude so inertia can't run aw
 void main() {
   vec4 here = texture(tField, vUv);
 
-  // Self-advection of VELOCITY ONLY — trace velocity backwards through the field.
+  // Self-advection of VELOCITY ONLY: trace velocity backwards through the field.
   // This is what gives the flow its inertia and swirl.
   vec2 src = vUv - here.xy * uTexel * 0.065 * 40.0;
   vec2 vAdv = texture(tField, src).xy;
@@ -160,7 +160,7 @@ void main() {
   );
   vec2 vel = mix(vAdv, lap, uViscosity);
 
-  // Energy is held IN PLACE — deliberately NOT advected. Energy is the mask that
+  // Energy is held IN PLACE: deliberately NOT advected. Energy is the mask that
   // gates BOTH the visible distortion and the dye, so carrying it on the
   // long-lived, whole-screen velocity field is exactly what painted marks into
   // regions the cursor never touched (long tails to every border from a tiny
@@ -172,7 +172,7 @@ void main() {
   // Clamp the magnitude: with such slow decay a sustained drag/scroll would
   // otherwise let velocity accumulate to huge values, blowing up every
   // velocity-driven offset downstream (the screen-spanning tails). Inertia (the
-  // slow decay) is unchanged — only the peak magnitude is bounded.
+  // slow decay) is unchanged: only the peak magnitude is bounded.
   float vl = length(vel);
   if (vl > uMaxVel) vel *= uMaxVel / vl;
 
@@ -181,7 +181,7 @@ void main() {
 }
 `;
 
-/* 2b. VORTICITY CONFINEMENT — restore the small-scale swirl that numerical
+/* 2b. VORTICITY CONFINEMENT: restore the small-scale swirl that numerical
  * diffusion eats (Fedkiw/Stam). For each cell:
  *   curl  w  = (vR.y - vL.y) - (vT.x - vB.x)
  *   N        = normalize(grad(|w|))           (eps in the denominator)
@@ -234,7 +234,7 @@ void main() {
 }
 `;
 
-/* 3. DIVERGENCE — 0.5 * ((right.x - left.x) + (top.y - bottom.y)). */
+/* 3. DIVERGENCE: 0.5 * ((right.x - left.x) + (top.y - bottom.y)). */
 export const DIVERGENCE = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vUv;
@@ -253,7 +253,7 @@ void main() {
 }
 `;
 
-/* 4. PRESSURE (Jacobi) — one iteration; run 10 times ping-ponging pressure. */
+/* 4. PRESSURE (Jacobi): one iteration; run 10 times ping-ponging pressure. */
 export const PRESSURE = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vUv;
@@ -274,7 +274,7 @@ void main() {
 }
 `;
 
-/* 5. PROJECTION — subtract the pressure gradient to make the field
+/* 5. PROJECTION: subtract the pressure gradient to make the field
  * divergence-free, then fade velocity toward the edges. */
 export const PROJECT = /* glsl */ `#version 300 es
 precision highp float;
@@ -304,7 +304,7 @@ void main() {
 }
 `;
 
-/* 5b. DYE — the real "fluid memory" (Part C). A material field that records the
+/* 5b. DYE: the real "fluid memory" (Part C). A material field that records the
  * silk where the flow is energetic and dissolves it slowly in place; DISPLAY
  * blends it back so the trace lingers AFTER the cursor leaves instead of the
  * texture snapping back to the source. It is deliberately NOT advected by the
@@ -331,14 +331,14 @@ void main() {
   vec2 vel = f.xy;
   float energy = clamp(f.b, 0.0, 2.0);
 
-  // Read the dye IN PLACE — it is NOT carried by the flow (uAdvect defaults to 0).
+  // Read the dye IN PLACE: it is NOT carried by the flow (uAdvect defaults to 0).
   // Advecting it by the divergence-free, whole-screen velocity field is exactly
   // what dragged material into untouched regions and drew tails to every side.
   // (Raise uAdvect only if you want a subtle drift and can accept faint spread.)
   vec2 src = vUv - vel * uTexel * uAdvect;
   vec4 dye = texture(tDye, src);
 
-  // Slow dissolve — the wake fades over a second or two, not instantly.
+  // Slow dissolve: the wake fades over a second or two, not instantly.
   dye *= uDecay;
 
   // Pick up new material where the flow is energetic. The sampled colour is the
@@ -353,13 +353,13 @@ void main() {
 }
 `;
 
-/* 5c. RIPPLE — capillary "micro-waves" (Part D). A damped 2D wave equation run on
+/* 5c. RIPPLE: capillary "micro-waves" (Part D). A damped 2D wave equation run on
  * its own ping-pong field, independent of the incompressible flow solver above.
- * Incompressible 2D flow gives swirl/drape but NOT surface ripples — those are a
+ * Incompressible 2D flow gives swirl/drape but NOT surface ripples: those are a
  * height-field/wave phenomenon, so we add a real wave field here. The energetic
  * flow pokes the surface; the second-order integration (h depends on h AND its
  * previous value) gives the waves INERTIA, so they keep travelling and oscillating
- * after the cursor stops — the watery ripple the silk lacked. R = current height,
+ * after the cursor stops: the watery ripple the silk lacked. R = current height,
  * G = previous height (so one texture carries the whole second-order state). */
 export const RIPPLE = /* glsl */ `#version 300 es
 precision highp float;
@@ -386,13 +386,13 @@ void main() {
   float lap = (l + r + b + t) - 4.0 * h;
 
   // Second-order wave step: the (h - hPrev) term is the surface's momentum, so a
-  // disturbance radiates outward and keeps ringing — micro-waves by inertia.
+  // disturbance radiates outward and keeps ringing: micro-waves by inertia.
   float hNew = (2.0 * h - hPrev) + uSpeed * lap;
 
   // Bias the poke a little BEHIND the fingertip: read the local flow direction
   // (= cursor motion) and sample the energy slightly AHEAD of this texel, so the
-  // disturbance lands behind the finger. The fabric springs up behind the tip — a
-  // wake travelling OPPOSITE the motion — instead of only bulging to the sides.
+  // disturbance lands behind the finger. The fabric springs up behind the tip: a
+  // wake travelling OPPOSITE the motion: instead of only bulging to the sides.
   vec2 vHere = texture(tField, vUv).xy;
   vec2 fdir = length(vHere) > 1e-4 ? normalize(vHere) : vec2(0.0);
   vec2 c = vUv + fdir * uTexel * 10.0;
@@ -424,7 +424,7 @@ void main() {
 }
 `;
 
-/* 6. DISPLAY — distort the base tMap by the velocity field (energy-masked) + idle
+/* 6. DISPLAY: distort the base tMap by the velocity field (energy-masked) + idle
  * wind, layer trail / smoke / oil shimmer / a faint chromatic shift, kept dark. */
 export const DISPLAY = /* glsl */ `#version 300 es
 precision highp float;
@@ -440,11 +440,11 @@ uniform float uTime;
 uniform float uWind;
 uniform float uCalm;
 uniform float uDyeMix;
-uniform float uMaxFold; // hard cap on the fold offset (UV) — keeps the smear local
+uniform float uMaxFold; // hard cap on the fold offset (UV): keeps the smear local
 uniform sampler2D tRipple;  // micro water-wave height field (R = height)
 uniform vec2 uTexel;
 uniform float uRipple;      // refraction strength of the ripple slopes
-uniform float uRippleShade; // how strongly the wave flanks darken (depth — matches the fold)
+uniform float uRippleShade; // how strongly the wave flanks darken (depth, matches the fold)
 
 // Soft, slow, swirly field used as the idle "wind" that ripples the silk. Lower
 // spatial frequencies = larger, more readable billows; faster time = livelier.
@@ -463,13 +463,13 @@ void main() {
 
   // Energy mask: 0 in calm zones, ramps to 1 only where the field is energetic.
   // Threshold raised (was 0.04..0.3) so the velocity fold shows ONLY right under the
-  // cursor — the localized "depth" of the fingertip — and does NOT linger along the
+  // cursor, the localized "depth" of the fingertip, and does NOT linger along the
   // path as a trail. The lingering wake is now the job of the slow wave, not the
   // fold. The time-based wind / oil shimmer below stays UNmasked (ambient).
   float mask = smoothstep(0.12, 0.4, energy);
 
   // Idle "wind": ambient time-based ripple, always on. uCalm is pinned to 1 so the
-  // wind no longer hushes during movement — the background holds one steady state
+  // wind no longer hushes during movement: the background holds one steady state
   // instead of "compressing" as the wind faded out and back in on every drag.
   vec2 wind = windField(vUv, uTime) * uWind * uCalm;
 
@@ -515,7 +515,7 @@ void main() {
 
   vec3 color = texture(tMap, dUv).rgb;
 
-  // Trail: a few samples dragged along the (capped) flow — silky smear, local.
+  // Trail: a few samples dragged along the (capped) flow. Silky, local smear.
   vec3 trail = vec3(0.0);
   for (int i = 1; i <= 4; i++) {
     float f = float(i) / 4.0;
@@ -523,7 +523,7 @@ void main() {
   }
   trail *= 0.25;
 
-  // Smoke: wider, softer drift — masked.
+  // Smoke: wider, softer drift, masked.
   vec3 smoke = texture(tMap, dUv - dir * (0.03 + energy * 0.05) * mask).rgb;
 
   // Oil shimmer: time-based palette swirl. INTENTIONALLY left unmasked (ambient).
@@ -531,7 +531,7 @@ void main() {
                       energy * 5.0 + uTime * 0.6);
   vec3 oil = texture(tMap, dUv + dir * shimmer * 0.02).rgb;
 
-  // Faint chromatic shift on R/B — masked so it doesn't ride the whole screen.
+  // Faint chromatic shift on R/B: masked so it doesn't ride the whole screen.
   vec2 chroma = vel * 0.007 * mask;
   float r = texture(tMap, dUv + chroma).r;
   float b = texture(tMap, dUv - chroma).b;
@@ -548,7 +548,7 @@ void main() {
 
   // Fluid memory (Part C): advected dye that lingers where the flow carried
   // material and dissolves slowly. Gated by its own density (A), NOT by energy,
-  // so the wake stays visible AFTER the cursor stops — this is what kills the
+  // so the wake stays visible AFTER the cursor stops: this is what kills the
   // "snaps straight back to the source" feel. Sampled at the TRUE cursor coordinate
   // (vUv, not wind-shifted) so the wake stays exactly where the cursor drew it
   // instead of drifting off with the wind. Calm corners never accumulate dye.

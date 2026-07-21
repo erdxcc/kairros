@@ -1,7 +1,7 @@
 /**
  * Tiny dependency-free TypeScript tokenizer for the code block.
  *
- * Not a full parser — just enough lexical classification to colour our own,
+ * Not a full parser: just enough lexical classification to colour our own,
  * controlled snippets. Keeps first-load JS light (no Prism/Shiki).
  */
 
@@ -86,7 +86,7 @@ export function tokenize(code: string): Token[] {
       continue;
     }
 
-    // Strings (single, double, template — no nested interpolation parsing)
+    // Strings (single, double, template, no nested interpolation parsing)
     if (ch === '"' || ch === "'" || ch === "`") {
       let j = i + 1;
       while (j < n && code[j] !== ch) {

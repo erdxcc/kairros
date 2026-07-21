@@ -62,7 +62,7 @@ describe('event decoders (golden fixtures from devnet)', () => {
 
 describe('decoder hardening', () => {
     const someEvent = fixtures[0]?.events[0];
-    if (!someEvent) throw new Error('fixtures are empty — run scripts/record-fixtures.ts');
+    if (!someEvent) throw new Error('fixtures are empty, run scripts/record-fixtures.ts');
     const validBytes = toBytes(someEvent.dataBase58);
 
     it('rejects data without the event tag', () => {

@@ -40,7 +40,7 @@ async function fanOut(db: KairosDb): Promise<number> {
 
     let created = 0;
     for (const event of events) {
-        // Every kairos event payload carries the plan PDA — the merchant is its owner.
+        // Every kairos event payload carries the plan PDA: the merchant is its owner.
         const planPda = (event.payload as Record<string, unknown>).plan as string | undefined;
         let endpoints: Array<{ id: number }> = [];
         if (planPda) {
@@ -155,7 +155,7 @@ async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number;
                 })
                 .where(eq(dbSchema.webhookDeliveries.id, delivery.id));
             console.warn(
-                `[webhooks] delivery #${delivery.id} attempt ${attempts} failed (${errorText})${dead ? ' — DEAD' : ''}`,
+                `[webhooks] delivery #${delivery.id} attempt ${attempts} failed (${errorText})${dead ? ': DEAD' : ''}`,
             );
         }
     }

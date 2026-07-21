@@ -20,7 +20,7 @@ const PRESSURE_ITERATIONS = 10;
 const POINTER_COUNT = 8;
 const POINTER_LERP = 0.2;
 
-// Solver "feel" tunables (Part B — inertia & physical settling).
+// Solver "feel" tunables (Part B, inertia & physical settling).
 const VISCOSITY = 0.18; //          ADVECT smoothing: low = more vortices, higher = fewer lumps
 const VORTICITY_STRENGTH = 0.12; // vorticity-confinement strength; lowered so the silk fold stays flat/smooth (less swirl = fewer lumps now that the darkening no longer hides them)
 const MAX_VEL = 3.0; //             clamp on field velocity magnitude (stops inertial runaway)
@@ -30,22 +30,22 @@ const MAX_FOLD = 0.03; //           hard cap on the DISPLAY fold offset in UV (n
 const DYE_ADVECT = 0; //        0 = trace stays where the cursor passed (no flow-carried tails); >0 drifts
 const DYE_DECAY = 0.99; //      slow dissolve per frame: closer to 1 = longer-lasting wake
 const DYE_INJECT = 0.12; //     how much new silk the energetic flow deposits per frame
-const DYE_MIX = 0.0; //         OFF: the dye is the long cursor trail we don't want — the slow wave does all the trail work now (raise >0 to bring the memory trail back)
-const WIND_STRENGTH = 0.04; //  idle wind ripple amplitude (always on — never hushed by cursor movement)
+const DYE_MIX = 0.0; //         OFF: the dye is the long cursor trail we don't want, and the slow wave does all the trail work now (raise >0 to bring the memory trail back)
+const WIND_STRENGTH = 0.04; //  idle wind ripple amplitude (always on, never hushed by cursor movement)
 
 // Pointer follow-through: fraction of the last motion retained per frame after the
 // cursor stops. Higher = the silk coasts further along the direction of travel
 // before settling (end-of-stroke inertia). 0 = cut to zero at once (old behaviour).
 const POINTER_INERTIA = 0.84;
 
-// Ripple wave field (capillary "micro-waves", Part D) — a damped 2D wave equation
+// Ripple wave field (capillary "micro-waves", Part D): a damped 2D wave equation
 // layered over the silk so the surface ripples like water and keeps oscillating by
 // inertia. Tune these for the silk<->water balance.
 const RIPPLE_SPEED = 0.22; //    how fast the single wave travels; raised so it reads like real springy silk, not slow water (keep <= 0.5 CFL)
 const RIPPLE_DAMP = 0.97; //     DISTANCE knob: closer to 1 = the wave carries further. Lowered a touch so the wake MOVES away instead of lingering as a static trail. Wave radius/count is set by the broad poke in the RIPPLE shader, not here.
 const RIPPLE_FORCE = 0.025; //   how hard the cursor wake pokes the surface (amplitude of the single broad wave)
 const RIPPLE_DISTORT = 0.6; //   refraction strength of the wave (display pass; offset is capped at 0.012 UV)
-const RIPPLE_SHADE = 1.0; //     subtle wave-flank darkening for depth (kept low — the effect is bending, not darkening; display cap 0.15)
+const RIPPLE_SHADE = 1.0; //     subtle wave-flank darkening for depth (kept low, the effect is bending, not darkening; display cap 0.15)
 
 type GL = Renderer["gl"];
 
@@ -56,7 +56,7 @@ interface DoubleFBO {
 }
 
 /**
- * Framework-agnostic silk fluid field (OGL only — no Next/React imports).
+ * Framework-agnostic silk fluid field (OGL only, no Next/React imports).
  *
  * A full Stable-Fluids solver on a ping-pong RGBA16F grid. Requires WebGL2 and
  * EXT_color_buffer_float; {@link mount} returns false when unsupported so the
@@ -294,7 +294,7 @@ export class SilkField {
   }
 
   // alpha defaults to 1; the dye buffer must clear to 0 because there alpha is the
-  // material density — starting at 1 would tint the whole screen black until decay.
+  // material density: starting at 1 would tint the whole screen black until decay.
   private clearTarget(rt: RenderTarget, alpha = 1): void {
     const gl = this.gl!;
     gl.bindFramebuffer(gl.FRAMEBUFFER, rt.buffer);
@@ -464,7 +464,7 @@ export class SilkField {
       // Follow-through (end-of-stroke inertia): the velocity fed to the field
       // snaps to the live motion while the cursor moves (crisp drag, unchanged),
       // but when it slows or stops it decays over several frames instead of
-      // cutting to zero — so the field keeps getting a fading push in the last
+      // cutting to zero: so the field keeps getting a fading push in the last
       // direction and the silk coasts a little further along the stroke.
       p.ivx = Math.abs(p.vx) >= Math.abs(p.ivx) ? p.vx : p.ivx * POINTER_INERTIA;
       p.ivy = Math.abs(p.vy) >= Math.abs(p.ivy) ? p.vy : p.ivy * POINTER_INERTIA;

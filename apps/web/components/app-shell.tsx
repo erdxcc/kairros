@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
 }
 
-// Shown in place of the data pages when no wallet is connected — the dashboard
+// Shown in place of the data pages when no wallet is connected: the dashboard
 // chrome stays visible, and connecting is a top-right action (or this button).
 function ConnectPrompt() {
     return (

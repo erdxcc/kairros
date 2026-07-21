@@ -4,12 +4,12 @@
  * The billing scheduler executes `transferSubscription` with whatever signer
  * this interface yields. Implementations:
  *
- *   - `envKeypairPullerSigner` — loads a Solana CLI keypair file. Devnet only:
+ *   - `envKeypairPullerSigner`: loads a Solana CLI keypair file. Devnet only:
  *     on devnet the key guards nothing of value.
  *   - A KMS-backed implementation lands in the mainnet milestone; nothing in
  *     the scheduler may assume access to raw key bytes.
  *
- * Security note: even a leaked puller key cannot redirect funds — the program
+ * Security note: even a leaked puller key cannot redirect funds. The program
  * only allows transfers to ATAs owned by the plan's immutable `destinations`,
  * within per-period amount caps.
  */

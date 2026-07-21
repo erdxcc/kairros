@@ -37,7 +37,7 @@ function BillingKeyCard() {
         <Card>
             <CardHeader
                 title="Billing key"
-                description="Add this key to your plan's pullers so kairos can pull due charges. It can never redirect funds — destinations are immutable on-chain."
+                description="Add this key to your plan's pullers so kairos can pull due charges. It can never redirect funds: destinations are immutable on-chain."
             />
             <div className="space-y-4 p-5">
                 <Field label="Merchant (you)">
@@ -112,7 +112,7 @@ function WebhooksCard() {
 
             {newSecret ? (
                 <div className="border-line-soft border-b bg-accent-soft/40 p-5">
-                    <p className="font-medium text-fg text-sm">Signing secret — copy it now</p>
+                    <p className="font-medium text-fg text-sm">Signing secret: copy it now</p>
                     <p className="mt-0.5 text-faint text-xs">
                         Shown only once. Use it to verify the HMAC signature on {short(newSecret.url, 8)}.
                     </p>

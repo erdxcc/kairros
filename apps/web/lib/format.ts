@@ -1,6 +1,6 @@
 /**
  * Display formatters for the dashboard. Token amounts arrive as base-unit
- * strings (u64-safe); we render them with a fixed decimals assumption — most
+ * strings (u64-safe); we render them with a fixed decimals assumption: most
  * SPL tokens, including USDC, use 6. (Per-mint symbol/decimals metadata is a
  * later enhancement; the schema does not store decimals yet.)
  */

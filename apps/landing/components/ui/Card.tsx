@@ -9,7 +9,7 @@ export interface CardProps {
 }
 
 /**
- * Raised surface with a thin border and an optional hover/focus sheen — a soft
+ * Raised surface with a thin border and an optional hover/focus sheen: a soft
  * highlight that sweeps across the card (CSS keyframes, see globals.css).
  */
 export function Card({ className, children, sheen = true }: CardProps) {

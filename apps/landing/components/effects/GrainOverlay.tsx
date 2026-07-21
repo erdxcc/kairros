@@ -1,5 +1,5 @@
 /**
- * GrainOverlay — a fixed, non-interactive film-grain layer over the whole page.
+ * GrainOverlay: a fixed, non-interactive film-grain layer over the whole page.
  *
  * Original generated placeholder: an inline SVG `feTurbulence` mask, no external
  * asset. Kept subtle to add premium texture and reduce gradient banding on dark

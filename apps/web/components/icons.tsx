@@ -1,4 +1,4 @@
-/** Inline stroke icons — no icon dependency, crisp at any size. */
+/** Inline stroke icons: no icon dependency, crisp at any size. */
 import type { SVGProps } from 'react';
 
 type IconProps = SVGProps<SVGSVGElement>;

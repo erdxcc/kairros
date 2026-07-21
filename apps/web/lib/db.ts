@@ -6,7 +6,7 @@ let dbPromise: Promise<KairosDb> | undefined;
 
 export function getDb(): Promise<KairosDb> {
     if (!dbPromise) {
-        // The web app connects only — schema setup is owned by `pnpm db:migrate`
+        // The web app connects only: schema setup is owned by `pnpm db:migrate`
         // or the worker. The web app requires a postgres:// URL (PGlite is
         // single-process and does not run inside the Next.js server bundle).
         dbPromise = createDb(loadConfig().databaseUrl, { migrate: false });

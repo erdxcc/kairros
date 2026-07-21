@@ -2,7 +2,7 @@
  * Records event fixtures from real devnet transactions involving our test
  * actors, and stores both the raw instruction data and the decoded ("golden")
  * form. The vitest suite replays raw bytes through the decoders and compares
- * against the golden output — any upstream wire-format change breaks loudly.
+ * against the golden output: any upstream wire-format change breaks loudly.
  *
  * Run after `pnpm demo:lifecycle` and `npx tsx scripts/probe-delegations.ts`.
  */

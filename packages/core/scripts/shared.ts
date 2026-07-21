@@ -34,7 +34,7 @@ export function readDevnetEnv(keysDir: string): DevnetEnv {
     try {
         return JSON.parse(readFileSync(devnetEnvPath(keysDir), 'utf8')) as DevnetEnv;
     } catch {
-        throw new Error(`Missing ${devnetEnvPath(keysDir)} — run \`pnpm setup:devnet\` first.`);
+        throw new Error(`Missing ${devnetEnvPath(keysDir)}, run \`pnpm setup:devnet\` first.`);
     }
 }
 

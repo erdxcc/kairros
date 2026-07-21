@@ -1,5 +1,5 @@
 /**
- * Creates a plan and subscribes WITHOUT charging — the point is to watch the
+ * Creates a plan and subscribes WITHOUT charging: the point is to watch the
  * kairos worker pick the subscription up and charge it automatically.
  *
  *   npx tsx scripts/demo-subscribe.ts
@@ -59,7 +59,7 @@ async function main() {
     );
     const [planPda] = await findPlanPda({ owner: merchantKp.address, planId });
     console.log(`createPlan: ${extractSignature(created)}`);
-    console.log(`planPda ${planPda} — pullers include the kairos billing key ${pullerKp.address}`);
+    console.log(`planPda ${planPda}, pullers include the kairos billing key ${pullerKp.address}`);
 
     // Make sure the authority exists (idempotent across runs).
     const [authorityPda] = await findSubscriptionAuthorityPda({

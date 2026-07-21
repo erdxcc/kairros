@@ -8,7 +8,7 @@
  *     a new period's full amount unlocks once periodStart + period elapses
  *     (the program rolls the period forward on transfer).
  *   - A scheduled cancellation (expiresAtTs != 0) means "already paid through
- *     the grace period" — never charge again.
+ *     the grace period": never charge again.
  */
 
 export interface DueCheckInput {
@@ -29,7 +29,7 @@ export type DueKind = 'first-charge' | 'renewal';
  * Returns why a subscription is chargeable right now, or null when it is not.
  */
 export function subscriptionDue(input: DueCheckInput, nowTs: bigint): DueKind | null {
-    if (input.expiresAtTs !== 0n) return null; // cancellation scheduled — never charge
+    if (input.expiresAtTs !== 0n) return null; // cancellation scheduled: never charge
     if (input.amount <= 0n) return null;
     const periodEnd = input.currentPeriodStartTs + input.periodHours * 3600n;
     if (nowTs >= periodEnd) return 'renewal'; // program rolls the period on transfer
@@ -40,9 +40,9 @@ export function subscriptionDue(input: DueCheckInput, nowTs: bigint): DueKind | 
 }
 
 export type ChargeFailureKind =
-    | 'insufficient_funds' // retryable — the classic dunning case
+    | 'insufficient_funds' // retryable: the classic dunning case
     | 'already_charged' // period cap hit (someone else pulled); not a failure
-    | 'not_due' // periodNotElapsed; clock skew — retry next cycle
+    | 'not_due' // periodNotElapsed; clock skew: retry next cycle
     | 'subscription_cancelled' // terminal for this subscription
     | 'plan_inactive' // plan sunset/expired/closed
     | 'receiver_ata_missing' // merchant setup problem; actionable

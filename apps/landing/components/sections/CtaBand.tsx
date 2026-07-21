@@ -7,7 +7,7 @@ export function CtaBand() {
     <section className="section">
       <div className="container-page">
         <div className="relative isolate overflow-hidden rounded-[28px] border border-border px-6 py-20 text-center sm:px-12">
-          {/* Calm static silk gradient (same palette) — no second WebGL context. */}
+          {/* Calm static silk gradient (same palette): no second WebGL context. */}
           <div
             aria-hidden="true"
             className="silk-fallback absolute inset-0 -z-10 opacity-60"

@@ -2,7 +2,7 @@
 const nextConfig = {
     // @kairos/core ships raw TypeScript (exports point at ./src); let Next transpile it.
     transpilePackages: ['@kairos/core'],
-    // Native/Node-only deps must not be bundled — they run on the nodejs runtime.
+    // Native/Node-only deps must not be bundled: they run on the nodejs runtime.
     serverExternalPackages: ['pg', '@electric-sql/pglite'],
     webpack: (config) => {
         // @kairos/core uses NodeNext-style `.js` import specifiers that actually
