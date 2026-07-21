@@ -17,6 +17,8 @@
         "setup:devnet": "pnpm --filter @kairos/core setup:devnet",
         "demo:lifecycle": "pnpm --filter @kairos/core demo:lifecycle",
         "worker:dev": "pnpm --filter @kairos/worker dev",
+        "web:dev": "pnpm --filter @kairos/web dev",
+        "landing:dev": "pnpm --filter @kairos/landing dev",
         "db:stats": "pnpm --filter @kairos/core db:stats"
     },
     "devDependencies": {

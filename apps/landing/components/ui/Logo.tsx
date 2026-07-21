@@ -2,13 +2,13 @@ import { cn } from "@/lib/cn";
 
 /**
  * Original placeholder wordmark for Kairos: a gradient mark (an abstract
- * hourglass nodding to "kairos" = the opportune moment) plus the name.
+ * hourglass nodding to "kairos", the opportune moment) plus the name.
  */
 export function Logo({ className }: { className?: string }) {
   return (
     <a
-      href="#"
-      aria-label="Kairos — home"
+      href="/"
+      aria-label="Kairos home"
       className={cn(
         "inline-flex items-center gap-2.5 text-fg transition-opacity hover:opacity-90",
         className,

@@ -2,26 +2,28 @@
  * Centralised UI copy for the Kairos landing page.
  *
  * All user-facing text lives here (English) so any section can be lifted into
- * another project with its strings intact. CTAs are placeholders (href "#").
+ * another project with its strings intact. Off-site links come from lib/site.ts,
+ * so the dashboard origin and repo URL are set in exactly one place.
  */
+import { site } from "@/lib/site";
 
 export const nav = {
   links: [
     { label: "Product", href: "#features" },
     { label: "Pricing", href: "#pricing" },
     { label: "Docs", href: "#developers" },
-    { label: "Changelog", href: "#" },
+    { label: "GitHub", href: site.repoUrl },
   ],
-  signIn: { label: "Sign in", href: "#" },
-  start: { label: "Start", href: "#" },
+  signIn: { label: "Sign in", href: site.dashboardUrl },
+  start: { label: "Start", href: site.dashboardUrl },
 } as const;
 
 export const hero = {
   eyebrow: "Recurring payments on Solana",
   title: "Subscriptions and allowances, settled on-chain.",
   subhead:
-    "The billing layer for Solana. People manage their subscriptions and spending limits, businesses get paid on schedule, and developers ship it all with a drop-in SDK — non-custodial, settled in seconds.",
-  primary: { label: "Start", href: "#" },
+    "The billing layer for Solana. People manage their subscriptions and spending limits, businesses get paid on schedule, and developers ship it all with a drop-in SDK. Non-custodial, settled in seconds.",
+  primary: { label: "Start", href: site.dashboardUrl },
   secondary: { label: "Read the docs", href: "#developers" },
   install: "npm i @kairos/sdk",
 } as const;
@@ -41,7 +43,7 @@ export const audiences: ReadonlyArray<{
     tab: "For people",
     title: "Approve once, stay in control.",
     body: "Set a spending limit, see every charge on-chain, cancel or revoke anytime. Your keys, your money.",
-    cta: { label: "Manage subscriptions", href: "#" },
+    cta: { label: "Manage subscriptions", href: site.dashboardUrl },
     points: [
       "Capped, revocable spending limits",
       "Every charge verifiable on-chain",
@@ -53,7 +55,7 @@ export const audiences: ReadonlyArray<{
     tab: "For businesses",
     title: "Get paid on schedule.",
     body: "Accept recurring payments in SOL and SPL tokens with instant settlement and clean reconciliation. No custody, no chargebacks.",
-    cta: { label: "Start accepting", href: "#" },
+    cta: { label: "Start accepting", href: site.dashboardUrl },
     points: [
       "Recurring charges in SOL and SPL tokens",
       "Instant settlement, clean reconciliation",
@@ -98,12 +100,12 @@ export const ecosystem = {
 export const features = {
   heading: "One layer for every side of the payment.",
   subheading:
-    "Subscriptions and allowances are a cause and effect: people approve a capped, revocable limit, and Kairos collects within it — settled on Solana.",
+    "Subscriptions and allowances are a cause and effect: people approve a capped, revocable limit, and Kairos collects within it, settled on Solana.",
   items: [
     {
       icon: "repeat" as const,
       title: "Recurring payments, native to Solana",
-      body: "Scheduled pull payments built on token delegation — the primitive Solana was missing.",
+      body: "Scheduled pull payments built on token delegation, the primitive Solana was missing.",
     },
     {
       icon: "shield" as const,
@@ -132,16 +134,16 @@ export const developer = {
     "Subscribe to settlement and revocation events",
     "Works in any TypeScript runtime",
   ],
-  cta: { label: "Read the docs", href: "#" },
+  cta: { label: "Read the docs", href: site.docsUrl },
 } as const;
 
 export const howItWorks = {
   heading: "How it works",
-  subheading: "From approval to reconciliation — four steps, fully non-custodial.",
+  subheading: "From approval to reconciliation in four steps, fully non-custodial.",
   steps: [
     {
       title: "Approve an allowance",
-      body: "The payer approves a capped, revocable spending limit — a delegated authority, not a transfer.",
+      body: "The payer approves a capped, revocable spending limit: a delegated authority, not a transfer.",
     },
     {
       title: "Kairos collects on schedule",
@@ -149,7 +151,7 @@ export const howItWorks = {
     },
     {
       title: "Settles on Solana in seconds",
-      body: "Funds move on-chain and settle in seconds — verifiable, with no chargebacks.",
+      body: "Funds move on-chain and settle in seconds, verifiable, with no chargebacks.",
     },
     {
       title: "Track & reconcile",
@@ -170,15 +172,14 @@ export const trust = {
 export const cta = {
   heading: "Start building on Solana today.",
   subheading:
-    "Recurring payments, allowances, and instant settlement — for people, businesses, and developers.",
+    "Recurring payments, allowances, and instant settlement for people, businesses, and developers.",
   actions: [
-    { label: "Start", href: "#", variant: "solid" as const },
+    { label: "Start", href: site.dashboardUrl, variant: "solid" as const },
     { label: "Read the docs", href: "#developers", variant: "ghost" as const },
   ],
   links: [
-    { label: "Docs", href: "#" },
-    { label: "Community", href: "#" },
-    { label: "X", href: "#" },
+    { label: "Docs", href: site.docsUrl },
+    { label: "GitHub", href: site.repoUrl },
   ],
 } as const;
 

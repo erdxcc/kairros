@@ -6,6 +6,8 @@ yarn.lock
 
 # Build output
 dist/
+build/
+out/
 .next/
 next-env.d.ts
 *.tsbuildinfo
@@ -15,9 +17,17 @@ next-env.d.ts
 .env.*
 !.env.example
 .keys/
+*.pem
 
 # Test coverage
 coverage/
+
+# Logs
+npm-debug.log*
+
+# Editors
+.vscode/
+.idea/
 
 # OS noise
 .DS_Store
