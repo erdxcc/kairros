@@ -77,9 +77,7 @@ export function WalletMenu() {
                 {open && (
                     <div className={panel}>
                         <p className="px-2 pt-1 text-faint text-xs">Signed in as</p>
-                        <p className="px-2 pb-2 font-mono text-fg text-xs">
-                            {short(session.merchant, 6)}
-                        </p>
+                        <p className="px-2 pb-2 font-mono text-fg text-xs">{short(session.merchant, 6)}</p>
                         <button
                             type="button"
                             onClick={() => {
@@ -146,7 +144,13 @@ export function WalletMenu() {
                                         className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {w.icon ? (
-                                            <img src={w.icon} alt="" width={20} height={20} className="rounded" />
+                                            <img
+                                                src={w.icon}
+                                                alt=""
+                                                width={20}
+                                                height={20}
+                                                className="rounded"
+                                            />
                                         ) : (
                                             <WalletIcon className="text-muted" width={20} height={20} />
                                         )}

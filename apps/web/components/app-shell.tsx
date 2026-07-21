@@ -108,8 +108,8 @@ function ConnectPrompt() {
             </div>
             <h1 className="mt-4 font-semibold text-fg text-lg tracking-tight">Connect your wallet</h1>
             <p className="mt-1 max-w-sm text-muted text-sm">
-                Sign in with your Solana wallet to load your merchant data. One signature, no
-                transaction, no gas.
+                Sign in with your Solana wallet to load your merchant data. One signature, no transaction, no
+                gas.
             </p>
             <div className="mt-5">
                 <WalletMenu />

@@ -1,14 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 /** True when the visitor signalled Save-Data on their connection. */
 function hasSaveData(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const connection = (
-    navigator as Navigator & { connection?: { saveData?: boolean } }
-  ).connection;
-  return Boolean(connection?.saveData);
+    if (typeof navigator === 'undefined') return false;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    return Boolean(connection?.saveData);
 }
 
 /**
@@ -17,12 +15,12 @@ function hasSaveData(): boolean {
  * prefers-reduced-data media query, and the Save-Data client hint.
  */
 export function shouldReduceMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-    window.matchMedia("(prefers-reduced-data: reduce)").matches ||
-    hasSaveData()
-  );
+    if (typeof window === 'undefined') return false;
+    return (
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        window.matchMedia('(prefers-reduced-data: reduce)').matches ||
+        hasSaveData()
+    );
 }
 
 /**
@@ -30,21 +28,21 @@ export function shouldReduceMotion(): boolean {
  * is stable, then resolves on mount and stays in sync with media changes.
  */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+    const [reduced, setReduced] = useState(false);
 
-  useEffect(() => {
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const data = window.matchMedia("(prefers-reduced-data: reduce)");
-    const update = () => setReduced(shouldReduceMotion());
+    useEffect(() => {
+        const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const data = window.matchMedia('(prefers-reduced-data: reduce)');
+        const update = () => setReduced(shouldReduceMotion());
 
-    update();
-    motion.addEventListener("change", update);
-    data.addEventListener("change", update);
-    return () => {
-      motion.removeEventListener("change", update);
-      data.removeEventListener("change", update);
-    };
-  }, []);
+        update();
+        motion.addEventListener('change', update);
+        data.addEventListener('change', update);
+        return () => {
+            motion.removeEventListener('change', update);
+            data.removeEventListener('change', update);
+        };
+    }, []);
 
-  return reduced;
+    return reduced;
 }
