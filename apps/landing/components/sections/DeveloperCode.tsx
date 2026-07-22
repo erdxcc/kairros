@@ -1,103 +1,129 @@
-import { CodeBlock, type CodeTab } from '@/components/effects/CodeBlock';
+'use client';
+
 import { Reveal } from '@/components/effects/Reveal';
-import { Button } from '@/components/ui/Button';
-import { developer } from '@/lib/copy';
+import { CheckList } from '@/components/ui/CheckList';
+import { Eyebrow, Pill } from '@/components/ui/SectionHeader';
+import { cn } from '@/lib/cn';
+import { type CodeTab, checkout } from '@/lib/copy';
+import { site } from '@/lib/site';
+import { useState } from 'react';
 
-// Realistic-but-fictional snippets for a made-up @kairos/sdk.
-const TABS: CodeTab[] = [
-    {
-        id: 'subscription',
-        label: 'Create a subscription',
-        code: `import { Kairos } from "@kairos/sdk";
+// Highlighting two fixed snippets does not need a tokenizer: they are authored
+// here as spans, so what ships is exactly what we wrote.
+const kw = 'text-accent-kw';
+const str = 'text-success';
+const fn = 'text-fg';
+const comment = 'text-fainter';
 
-const kairos = new Kairos({ cluster: "mainnet-beta" });
+const SNIPPETS: Record<CodeTab, React.ReactNode> = {
+    checkout: (
+        <>
+            <span className={comment}>{'// Subscribe-with-Solana button'}</span>
+            {'\n'}
+            <span className={kw}>import</span>
+            {' { KairosCheckout } '}
+            <span className={kw}>from</span> <span className={str}>"@kairos/sdk"</span>;{'\n\n'}
+            {'KairosCheckout.'}
+            <span className={fn}>mount</span>(<span className={str}>"#subscribe"</span>
+            {', {\n  plan: '}
+            <span className={str}>"plan_9f3a2c"</span>
+            {',\n  network: '}
+            <span className={str}>"{site.network}"</span>
+            {',\n  onSuccess: (sub) => unlock(sub.id),\n});'}
+        </>
+    ),
+    webhook: (
+        <>
+            <span className={comment}>{'// Verify a signed event, then react'}</span>
+            {'\n'}
+            <span className={kw}>import</span>
+            {' { verifyWebhook } '}
+            <span className={kw}>from</span> <span className={str}>"@kairos/sdk"</span>;{'\n\n'}
+            {'app.'}
+            <span className={fn}>post</span>(<span className={str}>"/webhooks/kairos"</span>
+            {', (req, res) => {\n  '}
+            <span className={kw}>const</span>
+            {' event = '}
+            <span className={fn}>verifyWebhook</span>
+            {'(req, SECRET);\n  '}
+            <span className={kw}>if</span>
+            {' (event.type === '}
+            <span className={str}>"charge.succeeded"</span>
+            {') {\n    unlock(event.data.subscriber);\n  }\n  res.'}
+            <span className={fn}>sendStatus</span>
+            {'(200);\n});'}
+        </>
+    ),
+};
 
-// Charge 20 USDC every month, settled on Solana.
-const subscription = await kairos.subscriptions.create({
-  payer: wallet.publicKey,
-  token: "USDC",
-  amount: 20_000_000n, // 6 decimals
-  interval: "monthly",
-});
-
-console.log(subscription.status); // "active"`,
-    },
-    {
-        id: 'allowance',
-        label: 'Set an allowance',
-        code: `import { Kairos } from "@kairos/sdk";
-
-const kairos = new Kairos({ cluster: "mainnet-beta" });
-
-// Approve a capped, revocable spending limit.
-const allowance = await kairos.allowances.approve({
-  owner: wallet.publicKey,
-  token: "USDC",
-  limit: 100_000_000n, // 100 USDC cap
-  period: "month",
-});
-
-// Revoke it any time: fully on-chain.
-await kairos.allowances.revoke(allowance.id);`,
-    },
-    {
-        id: 'event',
-        label: 'Handle an event',
-        code: `import { Kairos } from "@kairos/sdk";
-
-const kairos = new Kairos({ cluster: "mainnet-beta" });
-
-// React to settlements as they land on-chain.
-kairos.on("charge.settled", (event) => {
-  console.log(event.subscriptionId, event.signature);
-  fulfill(event.subscriptionId);
-});
-
-await kairos.listen();`,
-    },
-];
-
+/**
+ * The drop-in checkout pitch, tagged `preview` because the SDK is designed but
+ * not shipped. The snippets illustrate the intended surface, so they have to
+ * move whenever it does.
+ */
 export function DeveloperCode() {
+    const [tab, setTab] = useState<CodeTab>('checkout');
+
     return (
-        <section id="developers" className="section">
-            <div className="container-page grid gap-12 lg:grid-cols-2 lg:items-center">
+        <section id="build" className="container-page section">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] items-center gap-11">
                 <div>
                     <Reveal>
-                        <p className="inline-flex items-center gap-2 text-sm font-medium text-accent-2">
-                            {developer.eyebrow}
-                        </p>
+                        <Eyebrow badge={<Pill>{checkout.badge}</Pill>}>{checkout.eyebrow}</Eyebrow>
                     </Reveal>
-                    <Reveal delay={70}>
-                        <h2 className="mt-4 text-balance text-[clamp(1.8rem,3.4vw,2.7rem)] font-semibold leading-tight">
-                            {developer.heading}
+                    <Reveal delay={80}>
+                        <h2 className="mt-5 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.07] tracking-[-0.026em]">
+                            {checkout.heading}
                         </h2>
                     </Reveal>
-                    <Reveal delay={130}>
-                        <p className="mt-4 text-pretty leading-relaxed text-fg-muted md:text-lg">
-                            {developer.body}
+                    <Reveal delay={140}>
+                        <p className="mt-[22px] max-w-[42ch] text-[17px] leading-relaxed text-muted">
+                            {checkout.lead}
                         </p>
                     </Reveal>
-                    <Reveal delay={190}>
-                        <ul className="mt-7 space-y-3">
-                            {developer.bullets.map((bullet) => (
-                                <li key={bullet} className="flex items-start gap-3 text-sm text-fg">
-                                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full [background-image:var(--gradient-brand)]" />
-                                    {bullet}
-                                </li>
-                            ))}
-                        </ul>
-                    </Reveal>
-                    <Reveal delay={250}>
-                        <div className="mt-8">
-                            <Button href={developer.cta.href} variant="outline" size="lg">
-                                {developer.cta.label}
-                            </Button>
-                        </div>
+                    <Reveal delay={200}>
+                        <CheckList items={checkout.points} className="mt-7" />
                     </Reveal>
                 </div>
 
                 <Reveal delay={120}>
-                    <CodeBlock tabs={TABS} />
+                    <div className="overflow-hidden rounded-[14px] border border-line bg-code shadow-[0_30px_70px_-30px_rgba(0,0,0,0.7)]">
+                        <div className="flex items-center justify-between border-b border-line-soft bg-chrome pr-1.5">
+                            <div className="flex" role="tablist" aria-label="SDK examples">
+                                {checkout.tabs.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        role="tab"
+                                        id={`code-tab-${t.id}`}
+                                        aria-selected={tab === t.id}
+                                        aria-controls={`code-panel-${t.id}`}
+                                        onClick={() => setTab(t.id)}
+                                        className={cn(
+                                            'border-b-2 px-4 py-3.5 font-mono text-[12.5px] transition-colors duration-150',
+                                            tab === t.id
+                                                ? 'border-accent text-fg'
+                                                : 'border-transparent text-faint hover:text-fg-soft',
+                                        )}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <span className="hidden pr-3 font-mono text-[11px] text-fainter sm:block">
+                                {checkout.install}
+                            </span>
+                        </div>
+
+                        <pre
+                            role="tabpanel"
+                            id={`code-panel-${tab}`}
+                            aria-labelledby={`code-tab-${tab}`}
+                            className="m-0 overflow-x-auto p-5 font-mono text-[12.5px] leading-[1.72] text-muted"
+                        >
+                            <code>{SNIPPETS[tab]}</code>
+                        </pre>
+                    </div>
                 </Reveal>
             </div>
         </section>

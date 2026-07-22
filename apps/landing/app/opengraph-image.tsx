@@ -6,8 +6,8 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 /**
- * Generated Open Graph image (original placeholder, no external assets).
- * Dark canvas + brand gradient wordmark.
+ * Generated Open Graph image (no external assets): dark canvas, accent mark,
+ * and the same headline the hero leads with.
  */
 export default function OpengraphImage() {
     return new ImageResponse(
@@ -19,8 +19,8 @@ export default function OpengraphImage() {
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 padding: '80px',
-                background: 'radial-gradient(1200px 600px at 18% -10%, #1a1140 0%, #07070b 55%)',
-                color: '#f4f4f7',
+                background: 'radial-gradient(1200px 600px at 18% -10%, #1a1140 0%, #0a0a0e 55%)',
+                color: '#ededf1',
                 fontFamily: 'sans-serif',
             }}
         >
@@ -30,10 +30,10 @@ export default function OpengraphImage() {
                         width: '44px',
                         height: '44px',
                         borderRadius: '12px',
-                        background: 'linear-gradient(135deg, #8b5cf6 0%, #22d3ee 55%, #14f195 100%)',
+                        background: '#7c6cff',
                     }}
                 />
-                <div style={{ fontSize: '34px', letterSpacing: '-0.02em' }}>Kairos</div>
+                <div style={{ fontSize: '34px', letterSpacing: '-0.02em' }}>kairos</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -45,10 +45,10 @@ export default function OpengraphImage() {
                         maxWidth: '900px',
                     }}
                 >
-                    Subscriptions and allowances, settled on-chain.
+                    Subscriptions that settle on-chain.
                 </div>
-                <div style={{ fontSize: '30px', color: '#8a8a99' }}>
-                    The billing layer for Solana: non-custodial, settled in seconds.
+                <div style={{ fontSize: '30px', color: '#9b9baa' }}>
+                    Capped and revocable for payers. Automatic and observable for merchants.
                 </div>
             </div>
         </div>,

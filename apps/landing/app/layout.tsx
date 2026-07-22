@@ -1,9 +1,25 @@
 import { GrainOverlay } from '@/components/effects/GrainOverlay';
 import { site } from '@/lib/site';
-import { GeistMono } from 'geist/font/mono';
-import { GeistSans } from 'geist/font/sans';
 import type { Metadata, Viewport } from 'next';
+import { Fira_Code, Fira_Sans } from 'next/font/google';
 import './globals.css';
+
+// Fira Sans for UI, Fira Code for numbers/addresses/code: the same pairing the
+// dashboard uses, so both surfaces read as one product. Self-hosted by
+// next/font, so there is no runtime request to Google.
+const firaSans = Fira_Sans({
+    subsets: ['latin'],
+    weight: ['300', '400', '500', '600', '700'],
+    variable: '--font-fira-sans',
+    display: 'swap',
+});
+
+const firaCode = Fira_Code({
+    subsets: ['latin'],
+    weight: ['400', '500'],
+    variable: '--font-fira-code',
+    display: 'swap',
+});
 
 export const metadata: Metadata = {
     metadataBase: new URL(site.url),
@@ -36,7 +52,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-    themeColor: '#07070b',
+    themeColor: '#0a0a0e',
     colorScheme: 'dark',
     width: 'device-width',
     initialScale: 1,
@@ -44,7 +60,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+        <html lang="en" className={`${firaSans.variable} ${firaCode.variable}`} suppressHydrationWarning>
             <body className="min-h-screen antialiased">
                 {children}
                 <GrainOverlay />

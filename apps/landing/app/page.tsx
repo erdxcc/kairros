@@ -1,5 +1,6 @@
-import { AudienceTabs } from '@/components/sections/AudienceTabs';
+import { Audiences } from '@/components/sections/Audiences';
 import { CtaBand } from '@/components/sections/CtaBand';
+import { DashboardMockup } from '@/components/sections/DashboardMockup';
 import { DeveloperCode } from '@/components/sections/DeveloperCode';
 import { EcosystemRow } from '@/components/sections/EcosystemRow';
 import { FeatureGrid } from '@/components/sections/FeatureGrid';
@@ -15,12 +16,13 @@ export default function Page() {
             <Nav />
             <main>
                 <Hero />
-                <AudienceTabs />
-                <EcosystemRow />
-                <FeatureGrid />
-                <DeveloperCode />
+                <Audiences />
                 <HowItWorks />
+                <FeatureGrid />
+                <DashboardMockup />
+                <DeveloperCode />
                 <TrustBand />
+                <EcosystemRow />
                 <CtaBand />
             </main>
             <Footer />

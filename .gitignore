@@ -36,3 +36,8 @@ Thumbs.db
 
 # Local Claude Code tooling / installed skills (not product code)
 .claude/
+
+# Design handoff bundles: reference material for building the site, not part of
+# it. The landing page they describe lives in apps/landing.
+Kairros landing design/
+Kairros landing design.zip

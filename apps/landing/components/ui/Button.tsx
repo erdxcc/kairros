@@ -1,22 +1,22 @@
 import { cn } from '@/lib/cn';
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react';
 
-type Variant = 'solid' | 'ghost' | 'outline';
-type Size = 'sm' | 'md' | 'lg';
+type Variant = 'solid' | 'ghost';
+type Size = 'sm' | 'md';
 
+// Transitions name their properties (never `all`) and stay inside the 120-150ms
+// band the brand uses for micro feedback.
 const base =
-    'inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition duration-200 ease-[var(--ease-out-soft)] focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none';
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-[background-color,color,border-color,filter] duration-150 ease-out focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50';
 
 const variants: Record<Variant, string> = {
-    solid: '[background-image:var(--gradient-brand)] text-[#07070b] shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_8px_24px_-12px_rgba(139,92,246,0.6)] hover:brightness-110',
-    ghost: 'border border-border bg-white/[0.02] text-fg-muted hover:text-fg hover:border-border-strong hover:bg-white/[0.05]',
-    outline: 'border border-border-strong text-fg hover:bg-white/[0.04]',
+    solid: 'bg-accent font-semibold text-canvas hover:brightness-[1.08]',
+    ghost: 'border border-line text-fg hover:bg-surface-2',
 };
 
 const sizes: Record<Size, string> = {
-    sm: 'h-8 px-3.5 text-[13px]',
-    md: 'h-10 px-5 text-sm',
-    lg: 'h-12 px-6 text-[15px]',
+    sm: 'rounded-[9px] px-4 py-[9px] text-sm',
+    md: 'rounded-[10px] px-[22px] py-[13px] text-[15px]',
 };
 
 interface CommonProps {
@@ -37,7 +37,7 @@ type NativeButtonProps = CommonProps & { href?: undefined } & Omit<
     >;
 
 export function Button(props: AnchorProps | NativeButtonProps) {
-    const { variant = 'solid', size = 'md', className, children } = props;
+    const { variant = 'solid', size = 'sm', className, children } = props;
     const classes = cn(base, variants[variant], sizes[size], className);
 
     if (props.href !== undefined) {
@@ -54,5 +54,14 @@ export function Button(props: AnchorProps | NativeButtonProps) {
         <button className={classes} {...rest}>
             {children}
         </button>
+    );
+}
+
+/** The trailing arrow on primary CTAs. Mono so it keeps its weight beside Fira Sans. */
+export function ButtonArrow() {
+    return (
+        <span aria-hidden="true" className="font-mono">
+            →
+        </span>
     );
 }

@@ -1,14 +1,25 @@
 'use client';
 
-import { Button } from '@/components/ui/Button';
+import { Button, ButtonArrow } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
+import { NetworkBadge } from '@/components/ui/NetworkBadge';
 import { cn } from '@/lib/cn';
 import { nav } from '@/lib/copy';
+import { site } from '@/lib/site';
 import { useEffect, useState } from 'react';
 
+/**
+ * Fixed nav. Transparent over the hero so the silk field runs edge to edge
+ * behind it, then picks up a blurred backdrop once the page scrolls and the
+ * links would otherwise sit on top of cards. Fixed rather than sticky: a
+ * sticky bar holds its own row in the flow, so a transparent one would show
+ * the page background instead of the hero. The links collapse into a
+ * slide-down panel below `lg`, where five of them plus two buttons stop
+ * fitting on one row.
+ */
 export function Nav() {
-    const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 8);
@@ -17,9 +28,9 @@ export function Nav() {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    // Close the mobile menu when crossing into desktop layout.
+    // Close the panel when the layout crosses back into the desktop row.
     useEffect(() => {
-        const mq = window.matchMedia('(min-width: 768px)');
+        const mq = window.matchMedia('(min-width: 1024px)');
         const onChange = () => mq.matches && setOpen(false);
         mq.addEventListener('change', onChange);
         return () => mq.removeEventListener('change', onChange);
@@ -28,39 +39,43 @@ export function Nav() {
     return (
         <header
             className={cn(
-                'fixed inset-x-0 top-0 z-50 transition-colors duration-300',
+                'fixed inset-x-0 top-0 z-50 border-b transition-colors duration-300',
+                // The open mobile panel needs the backdrop even at the top.
                 scrolled || open
-                    ? 'border-b border-border bg-bg/70 backdrop-blur-xl'
-                    : 'border-b border-transparent',
+                    ? 'border-line-soft bg-canvas/70 backdrop-blur-[14px]'
+                    : 'border-transparent',
             )}
         >
-            <nav aria-label="Primary" className="container-page flex h-16 items-center justify-between">
-                <Logo />
+            <nav aria-label="Primary" className="container-page flex items-center gap-6 py-3.5">
+                <Logo>
+                    <NetworkBadge network={site.network} className="ml-0.5" />
+                </Logo>
 
-                <div className="hidden items-center gap-1 md:flex">
+                <div className="hidden flex-1 flex-wrap justify-center gap-[30px] lg:flex">
                     {nav.links.map((link) => (
                         <a
                             key={link.label}
                             href={link.href}
-                            className="rounded-full px-3 py-2 text-sm text-fg-muted transition hover:text-fg"
+                            className="text-sm text-muted transition-colors duration-150 hover:text-fg"
                         >
                             {link.label}
                         </a>
                     ))}
                 </div>
 
-                <div className="hidden items-center gap-2 md:flex">
-                    <Button href={nav.signIn.href} variant="ghost" size="sm">
+                <div className="ml-auto hidden flex-none items-center gap-2.5 lg:flex">
+                    <Button href={nav.signIn.href} variant="ghost">
                         {nav.signIn.label}
                     </Button>
-                    <Button href={nav.start.href} variant="solid" size="sm">
+                    <Button href={nav.start.href}>
                         {nav.start.label}
+                        <ButtonArrow />
                     </Button>
                 </div>
 
                 <button
                     type="button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-fg md:hidden"
+                    className="ml-auto inline-flex size-10 flex-none items-center justify-center rounded-[9px] border border-line text-fg transition-colors duration-150 hover:bg-surface-2 lg:hidden"
                     aria-label={open ? 'Close menu' : 'Open menu'}
                     aria-expanded={open}
                     aria-controls="mobile-menu"
@@ -86,11 +101,10 @@ export function Nav() {
                 </button>
             </nav>
 
-            {/* Mobile slide-down panel */}
             <div
                 id="mobile-menu"
                 className={cn(
-                    'overflow-hidden border-t border-border transition-[max-height,opacity] duration-300 ease-[var(--ease-out-soft)] md:hidden',
+                    'overflow-hidden border-t border-line-soft transition-[max-height,opacity] duration-300 ease-[var(--ease-out-soft)] lg:hidden',
                     open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
                 )}
             >
@@ -100,17 +114,18 @@ export function Nav() {
                             key={link.label}
                             href={link.href}
                             onClick={() => setOpen(false)}
-                            className="rounded-lg px-2 py-2.5 text-[15px] text-fg-muted transition hover:bg-surface hover:text-fg"
+                            className="rounded-lg px-2 py-2.5 text-[15px] text-muted transition-colors duration-150 hover:bg-surface hover:text-fg"
                         >
                             {link.label}
                         </a>
                     ))}
-                    <div className="mt-2 flex gap-2">
-                        <Button href={nav.signIn.href} variant="ghost" size="md" className="flex-1">
+                    <div className="mt-2 flex gap-2.5">
+                        <Button href={nav.signIn.href} variant="ghost" className="flex-1">
                             {nav.signIn.label}
                         </Button>
-                        <Button href={nav.start.href} variant="solid" size="md" className="flex-1">
+                        <Button href={nav.start.href} className="flex-1">
                             {nav.start.label}
+                            <ButtonArrow />
                         </Button>
                     </div>
                 </div>

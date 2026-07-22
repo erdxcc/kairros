@@ -21,7 +21,10 @@
  *   5. Edge vignette: keeps the borders calm for CLAMP_TO_EDGE sampling.
  */
 
-export const DEFAULT_PALETTE = ['#8b5cf6', '#22d3ee', '#14f195'] as const;
+// Brand palette: accent violet -> cyan -> success green. The first and last
+// stops are the real `accent` and `success` tokens, so the hero's violet is the
+// same violet as every button and link below it.
+export const DEFAULT_PALETTE = ['#7c6cff', '#22d3ee', '#3ecf8e'] as const;
 
 // --- Canvas -----------------------------------------------------------------
 // Wide so the texture covers a landscape hero without obvious stretching.
@@ -33,7 +36,9 @@ const TEXTURE_HEIGHT = 720;
 const SEED = 0x9e3779b9;
 
 // Deep base the whole field sits on (matches the shader's dark overlay tint).
-const BASE_RGB = { r: 7, g: 7, b: 11 };
+// Kept identical to the `canvas` token (#0a0a0e) so the hero's edges dissolve
+// into the page instead of leaving a step where the next section starts.
+const BASE_RGB = { r: 10, g: 10, b: 14 };
 
 // --- Tunables (the knobs to turn) -------------------------------------------
 // Marble clouds.

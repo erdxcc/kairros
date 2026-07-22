@@ -2,50 +2,55 @@
 
 /* ------------------------------------------------------------------ *
  * Design tokens (Tailwind v4 CSS-first config).
- * Colors map to utilities like bg-surface / text-fg-muted / text-accent.
+ *
+ * These mirror apps/web/app/globals.css so the marketing site and the
+ * dashboard share one palette. Colors map to utilities like bg-surface /
+ * text-muted / border-line / text-accent. Never write raw hex in a component.
  * ------------------------------------------------------------------ */
 @theme {
     /* Surfaces */
-    --color-bg: #07070b; /* page background, near-black, slight cool */
-    --color-surface: #0e0e15; /* cards / raised panels */
-    --color-surface-2: #15151f; /* hover / nested surfaces */
+    --color-canvas: #0a0a0e; /* page background */
+    --color-canvas-alt: #0c0c11; /* alternating section background */
+    --color-surface: #131318; /* cards, panels */
+    --color-surface-2: #1a1a21; /* raised controls, hover fills */
+    --color-surface-3: #17171d; /* card hover background */
+    --color-nested: #0f0f14; /* cards inside cards (dashboard tiles) */
+    --color-nested-dim: #101014; /* dimmed "soon" cards */
+    --color-nested-2: #16161c; /* icon tiles on dimmed cards */
+    --color-chrome: #111116; /* window chrome, sidebar */
+    --color-code: #0e0e13; /* code card background */
 
     /* Borders */
-    --color-border: rgba(255, 255, 255, 0.08);
-    --color-border-strong: rgba(255, 255, 255, 0.14);
+    --color-line: #26262f; /* borders */
+    --color-line-soft: #1d1d24; /* internal dividers */
+    --color-line-softer: #1f1f27; /* nested-card borders */
+    --color-line-hover: #3a3a48; /* card hover border */
 
     /* Foreground / text */
-    --color-fg: #f4f4f7; /* primary text */
-    --color-fg-muted: #8a8a99; /* secondary text */
-    --color-fg-faint: #5a5a68; /* tertiary / captions */
+    --color-fg: #ededf1; /* primary text */
+    --color-fg-soft: #c7c7d2; /* list items, emphasised body */
+    --color-muted: #9b9baa; /* secondary text (AA on canvas) */
+    --color-faint: #82828f; /* labels, captions (AA on canvas) */
+    --color-fainter: #6b6b78; /* eyebrows, metadata */
+    --color-faintest: #4d4d59; /* decorative only */
+    --color-dot: #2a2a33; /* inactive traffic dots */
+    --color-dot-2: #3a3a45; /* inactive sidebar bullets */
 
-    /* Accents (violet -> cyan -> teal) */
-    --color-accent: #8b5cf6; /* primary accent: violet */
-    --color-accent-2: #22d3ee; /* secondary accent: cyan */
-    --color-accent-3: #14f195; /* tertiary accent: Solana-ish teal/green */
+    /* Semantic */
+    --color-accent: #7c6cff; /* primary action, links, focus, charts */
+    --color-accent-hover: #9d90ff;
+    --color-accent-kw: #b3a8ff; /* code keywords */
+    --color-success: #3ecf8e; /* active / succeeded / mainnet */
+    --color-warning: #f0b15a; /* devnet / soon / retrying */
+    --color-danger: #f0635a; /* failed / destructive */
 
-    /* Typography */
-    --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", "Cascadia Code", monospace;
+    /* Typography: Fira via next/font (vars set on <html>), system fallbacks. */
+    --font-sans: var(--font-fira-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+        Arial, sans-serif;
+    --font-mono: var(--font-fira-code), ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
-    /* Radii */
-    --radius-card: 16px;
-    --radius-pill: 9999px;
-
-    /* Easing + durations used across native animations */
+    /* Easing used across native animations */
     --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-    --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
-
-    /* Shared brand gradient */
-    --gradient-brand: linear-gradient(
-        100deg,
-        var(--color-accent) 0%,
-        var(--color-accent-2) 52%,
-        var(--color-accent-3) 100%
-    );
-
-    /* Keyframes */
-    --animate-marquee: marquee 38s linear infinite;
 }
 
 /* ------------------------------------------------------------------ *
@@ -53,7 +58,7 @@
  * ------------------------------------------------------------------ */
 @layer base {
     * {
-        border-color: var(--color-border);
+        border-color: var(--color-line);
     }
 
     html {
@@ -69,7 +74,7 @@
     }
 
     body {
-        background-color: var(--color-bg);
+        background-color: var(--color-canvas);
         color: var(--color-fg);
         font-family: var(--font-sans);
         -webkit-font-smoothing: antialiased;
@@ -77,15 +82,14 @@
     }
 
     ::selection {
-        background-color: color-mix(in oklab, var(--color-accent) 38%, transparent);
-        color: var(--color-fg);
+        background-color: color-mix(in srgb, var(--color-accent) 28%, transparent);
+        color: #fff;
     }
 
     h1,
     h2,
     h3 {
         text-wrap: balance;
-        letter-spacing: -0.02em;
     }
 
     p {
@@ -94,15 +98,21 @@
 
     /* Visible, consistent focus ring for keyboard users */
     :focus-visible {
-        outline: 2px solid var(--color-accent-2);
+        outline: 2px solid var(--color-accent);
         outline-offset: 2px;
         border-radius: 4px;
+    }
+
+    /* Interactive elements signal clickability (Preflight no longer does). */
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]) {
+        cursor: pointer;
     }
 
     /* Thin, dark scrollbars to match the theme */
     * {
         scrollbar-width: thin;
-        scrollbar-color: var(--color-border-strong) transparent;
+        scrollbar-color: var(--color-line) transparent;
     }
 }
 
@@ -110,34 +120,25 @@
  * Utilities / helpers
  * ------------------------------------------------------------------ */
 @layer utilities {
-    /* Brand gradient text */
-    .text-gradient {
-        background: var(--gradient-brand);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-
-    /* Section rhythm */
+    /* Section rhythm and the 1200px container every section shares. */
     .section {
-        padding-block: clamp(4rem, 9vw, 8rem);
+        padding-block: clamp(76px, 9vw, 132px);
     }
 
     .container-page {
         width: 100%;
-        max-width: 78rem;
+        max-width: 1200px;
         margin-inline: auto;
-        padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+        padding-inline: clamp(20px, 4vw, 32px);
     }
 
-    /* Hairline divider that fades at the edges */
-    .hairline {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, var(--color-border-strong), transparent);
+    /* Numerals line up in stat cards and payment rows. */
+    .tabular {
+        font-variant-numeric: tabular-nums;
     }
 
     /* Static silk fallback: same palette + radial distribution as the WebGL
-   * field, so reduced-motion / no-WebGL2 / <768px transitions are seamless. */
+     * field, so reduced-motion / no-WebGL2 / <768px transitions are seamless. */
     .silk-fallback {
         background: radial-gradient(
                 70% 60% at 28% 30%,
@@ -146,96 +147,35 @@
             ),
             radial-gradient(
                 60% 55% at 76% 40%,
-                color-mix(in oklab, var(--color-accent-2) 36%, transparent),
+                color-mix(in oklab, #22d3ee 36%, transparent),
                 transparent 70%
             ),
             radial-gradient(
                 80% 70% at 52% 86%,
-                color-mix(in oklab, var(--color-accent-3) 30%, transparent),
+                color-mix(in oklab, var(--color-success) 30%, transparent),
                 transparent 72%
-            ), var(--color-bg);
+            ), var(--color-canvas);
         filter: saturate(0.92);
     }
 }
 
-/* Soft cross-fade for tab panels (AudienceTabs). */
-.panel-fade {
-    animation: reveal-rise 0.35s var(--ease-out-soft);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .panel-fade {
-        animation: none;
-    }
-}
-
-/* Card hover sheen: a soft highlight sweeps across on hover/focus. */
-.group:hover .card-sheen,
-.group:focus-within .card-sheen {
-    animation: sheen-sweep 0.9s var(--ease-out-soft);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .card-sheen {
-        display: none;
-    }
-}
-
 /* ------------------------------------------------------------------ *
- * Keyframes (sheen sweep, marquee, reveal, micro-glitch)
+ * Keyframes
  * ------------------------------------------------------------------ */
-@keyframes marquee {
-    from {
-        transform: translateX(0);
-    }
-    to {
-        transform: translateX(-50%);
-    }
-}
 
-/* Card sheen: a soft highlight travelling across the card on hover */
-@keyframes sheen-sweep {
-    0% {
-        transform: translateX(-120%) skewX(-12deg);
-        opacity: 0;
-    }
-    18% {
-        opacity: 0.55;
-    }
-    100% {
-        transform: translateX(220%) skewX(-12deg);
-        opacity: 0;
-    }
-}
-
-/* Reveal-on-scroll: handled by adding .in-view */
-@keyframes reveal-rise {
-    from {
-        opacity: 0;
-        transform: translateY(16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Optional restrained micro-glitch (1–2px RGB shift) for logo/primary CTA */
-@keyframes micro-glitch {
+/* Network status dot: a slow breath so "live" reads without nagging. */
+@keyframes status-pulse {
     0%,
-    92%,
     100% {
-        clip-path: inset(0 0 0 0);
-        transform: translate(0, 0);
+        opacity: 1;
     }
-    94% {
-        clip-path: inset(12% 0 40% 0);
-        transform: translate(-1px, 0);
+    50% {
+        opacity: 0.3;
     }
-    96% {
-        clip-path: inset(48% 0 8% 0);
-        transform: translate(1px, 0);
-    }
+}
+
+.status-dot {
+    animation: status-pulse 2.4s ease-in-out infinite;
 }
 
 /* ------------------------------------------------------------------ *
@@ -261,7 +201,7 @@
         transition: none;
     }
 
-    .marquee-track {
-        animation: none !important;
+    .status-dot {
+        animation: none;
     }
 }

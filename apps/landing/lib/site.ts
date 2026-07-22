@@ -2,14 +2,20 @@
  * Site-wide constants used for metadata, SEO and structured data.
  * Pure data, no framework imports, so it stays portable.
  */
+
+/** Which cluster this deployment talks about. Drives the status badges. */
+export type Network = 'devnet' | 'mainnet';
+
+const network: Network = process.env.NEXT_PUBLIC_NETWORK === 'mainnet' ? 'mainnet' : 'devnet';
+
 export const site = {
-    name: 'Kairos',
+    name: 'kairos',
     tagline: 'Recurring payments on Solana',
     description:
-        'Kairos is the billing layer for Solana. People manage their subscriptions and spending limits, businesses get paid on schedule, and developers ship it all with a drop-in SDK. Non-custodial, settled in seconds.',
+        'kairos is the open-source billing layer for native Solana subscriptions. Capped and revocable for payers, automatic and observable for merchants.',
     // Placeholder domain. Replace before going live.
     url: 'https://kairos.example',
-    ogImageAlt: 'Kairos: subscriptions and allowances, settled on-chain.',
+    ogImageAlt: 'kairos: the open-source billing layer for Solana subscriptions.',
     twitter: '@kairos',
 
     repoUrl: 'https://github.com/erdxcc/kairros',
@@ -18,6 +24,16 @@ export const site = {
     // gets its own deployment. Point this at that origin; the default is the port
     // `pnpm web:dev` serves locally.
     dashboardUrl: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'http://localhost:3000',
+
+    network,
+    // The native Solana Subscriptions program kairos bills through. Same address
+    // on both clusters.
+    programId: 'De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44',
+
+    // Planned work shows up as dimmed "soon" cards rather than being hidden, so
+    // the roadmap stays honest. Flip off to ship only what is live today.
+    showPlanned: true,
+
     keywords: [
         'Solana',
         'billing',

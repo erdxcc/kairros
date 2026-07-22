@@ -3,7 +3,7 @@ import { ImageResponse } from 'next/og';
 export const size = { width: 32, height: 32 };
 export const contentType = 'image/png';
 
-/** Generated favicon (original placeholder): brand-gradient tile with a "K". */
+/** Generated favicon: the accent tile from the logo mark, with a "k". */
 export default function Icon() {
     return new ImageResponse(
         <div
@@ -14,14 +14,14 @@ export default function Icon() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '7px',
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #22d3ee 55%, #14f195 100%)',
-                color: '#07070b',
+                background: '#7c6cff',
+                color: '#0a0a0e',
                 fontSize: '22px',
                 fontWeight: 700,
                 fontFamily: 'sans-serif',
             }}
         >
-            K
+            k
         </div>,
         { ...size },
     );
