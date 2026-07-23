@@ -87,10 +87,20 @@ function verify(header: string, body: string, secret: string): boolean {
 - When you register an endpoint after events already exist, the existing
   backlog for your merchant is delivered too (history flush).
 
+## Endpoint URL requirements
+
+Registered URLs are fetched server-side, so they are guarded against SSRF. In
+production an endpoint URL must use **https** and resolve to a **public**
+address; `http://`, credentials in the URL, and private / loopback / link-local
+targets (e.g. `127.0.0.1`, `169.254.169.254`, `10.0.0.0/8`) are rejected both at
+registration and before every delivery. Set `KAIROS_WEBHOOK_ALLOW_PRIVATE=1`
+(dev only) to relax this for local testing.
+
 ## Local testing
 
 ```bash
-pnpm --filter @kairos/core webhook:register http://127.0.0.1:8787/webhook
+# Local receiver is on http://127.0.0.1, so run the worker with the dev override:
+KAIROS_WEBHOOK_ALLOW_PRIVATE=1 pnpm --filter @kairos/core webhook:register http://127.0.0.1:8787/webhook
 WEBHOOK_SECRET=<printed secret> pnpm --filter @kairos/core webhook:receiver
-pnpm worker:dev
+KAIROS_WEBHOOK_ALLOW_PRIVATE=1 pnpm worker:dev
 ```

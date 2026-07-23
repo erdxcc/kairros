@@ -19,13 +19,17 @@ const SESSION_TTL = '24h';
 
 function secret(): Uint8Array {
     const value = process.env.AUTH_SECRET;
-    if (!value) {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('AUTH_SECRET must be set in production');
-        }
+    if (value) {
+        return new TextEncoder().encode(value);
+    }
+    // Fail closed: with no configured secret, only an explicit dev opt-in may
+    // fall back to the well-known insecure key. Environments where NODE_ENV is
+    // unset (staging/preview) must NOT silently accept a forgeable secret that
+    // anyone could use to mint sessions for any wallet.
+    if (process.env.AUTH_ALLOW_INSECURE_SECRET === '1') {
         return new TextEncoder().encode('kairos-dev-insecure-secret-change-me');
     }
-    return new TextEncoder().encode(value);
+    throw new Error('AUTH_SECRET must be set (or AUTH_ALLOW_INSECURE_SECRET=1 for local dev only)');
 }
 
 function sha256Hex(input: string): string {

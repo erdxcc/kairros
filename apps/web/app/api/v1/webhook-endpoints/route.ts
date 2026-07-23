@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { authenticate } from '@/lib/auth';
 import { getDb } from '@/lib/db';
 import { error, handler, json } from '@/lib/http';
-import { dbSchema } from '@kairos/core';
+import { UnsafeWebhookUrlError, assertSafeWebhookUrl, dbSchema, webhookAllowPrivate } from '@kairos/core';
 import { and, desc, eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -32,13 +32,13 @@ export const POST = handler(async (req) => {
     if (!merchant) return error(401, 'unauthorized');
     const body = (await req.json().catch(() => ({}))) as { url?: string };
     if (!body.url || typeof body.url !== 'string') return error(400, 'url is required');
+    // Guard against SSRF: https only, no private/loopback/link-local targets.
+    // Re-checked at delivery time in the worker, since DNS can change meanwhile.
     try {
-        const parsed = new URL(body.url);
-        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-            return error(400, 'url must be http(s)');
-        }
-    } catch {
-        return error(400, 'url is not a valid URL');
+        await assertSafeWebhookUrl(body.url, { allowPrivate: webhookAllowPrivate() });
+    } catch (err) {
+        if (err instanceof UnsafeWebhookUrlError) return error(400, err.message);
+        throw err;
     }
 
     const secret = `whsec_${randomBytes(24).toString('hex')}`;

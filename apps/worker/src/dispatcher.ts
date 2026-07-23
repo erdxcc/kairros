@@ -8,7 +8,7 @@
  *   kairos-signature: t=<unix seconds>,v1=<hex hmac-sha256(secret, `${t}.${body}`)>
  */
 import { createHmac } from 'node:crypto';
-import { type KairosDb, dbSchema, sleep } from '@kairos/core';
+import { type KairosDb, assertSafeWebhookUrl, dbSchema, sleep, webhookAllowPrivate } from '@kairos/core';
 import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 
 export interface DispatcherOptions {
@@ -19,7 +19,7 @@ export interface DispatcherOptions {
 /** Backoff schedule between delivery attempts. */
 const RETRY_DELAYS_MS = [30_000, 120_000, 600_000, 3_600_000, 21_600_000];
 
-function nextDelay(attempts: number): number {
+export function nextDelay(attempts: number): number {
     return RETRY_DELAYS_MS[Math.min(attempts - 1, RETRY_DELAYS_MS.length - 1)] ?? 21_600_000;
 }
 
@@ -29,7 +29,7 @@ export function signPayload(secret: string, timestampSec: number, body: string):
 }
 
 /** Routes fresh outbox rows into per-endpoint delivery rows. */
-async function fanOut(db: KairosDb): Promise<number> {
+export async function fanOut(db: KairosDb): Promise<number> {
     const events = await db
         .select()
         .from(dbSchema.outbox)
@@ -80,7 +80,7 @@ async function fanOut(db: KairosDb): Promise<number> {
 }
 
 /** Attempts all deliveries that are due (pending, or failed with elapsed backoff). */
-async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number; failed: number }> {
+export async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number; failed: number }> {
     const due = await opts.db
         .select({
             delivery: dbSchema.webhookDeliveries,
@@ -103,6 +103,7 @@ async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number;
         )
         .limit(20);
 
+    const allowPrivate = webhookAllowPrivate();
     let ok = 0;
     let failedCount = 0;
     for (const { delivery, url, secret, payload, createdAt } of due) {
@@ -116,6 +117,9 @@ async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number;
         let responseStatus: number | null = null;
         let errorText: string | null = null;
         try {
+            // Re-validate before every delivery: the URL is merchant-controlled and
+            // DNS may have re-pointed to an internal address since registration.
+            await assertSafeWebhookUrl(url, { allowPrivate });
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -125,6 +129,7 @@ async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number;
                     'kairos-delivery': String(delivery.id),
                 },
                 body,
+                redirect: 'error',
                 signal: AbortSignal.timeout(10_000),
             });
             responseStatus = response.status;

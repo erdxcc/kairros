@@ -125,7 +125,7 @@ beforeAll(async () => {
             executedAt: nowSec - 50n,
         },
     ]);
-});
+}, 30_000); // pglite migrate is slow under parallel `pnpm -r test` on some machines
 
 describe('SIWS auth', () => {
     it('verifies a real wallet signature bound to a server nonce', async () => {

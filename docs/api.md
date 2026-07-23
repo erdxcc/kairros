@@ -60,8 +60,10 @@ span multiple mints, `mints` lists them so the client can format/segment.
 
 - `DATABASE_URL`: Postgres connection string (required; the API does not run
   on PGlite). Run `pnpm db:migrate` once against it.
-- `AUTH_SECRET`: HMAC secret for nonce and session JWTs. Required in
-  production; a dev fallback is used otherwise.
+- `AUTH_SECRET`: HMAC secret for nonce and session JWTs. Required in every
+  deployment; a missing secret fails closed (the server refuses to sign or
+  verify tokens). For local dev only, set `AUTH_ALLOW_INSECURE_SECRET=1` to fall
+  back to a well-known insecure key.
 - `AUTH_DOMAIN`: domain shown in the SIWS message (defaults to the request host).
 
 ## Notes
