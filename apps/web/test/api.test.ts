@@ -7,7 +7,7 @@
  */
 import { type KairosDb, buildSignInMessage, createDb, dbSchema } from '@kairos/core';
 import { generateKeyPairSigner, getBase58Decoder } from '@solana/kit';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { authenticate, issueNonceToken, issueSession, verifySignIn } from '../lib/auth.js';
 import {
     getMetrics,
@@ -221,6 +221,33 @@ describe('queries are merchant-scoped', () => {
         expect(await isMerchant(db, merchantB)).toBe(true);
         expect(await isMerchant(db, 'userA1')).toBe(false);
         expect(await isMerchant(db, 'WalletWithNothingOnChainAAAAAAAAAAAAAAAAAAAA')).toBe(false);
+    });
+});
+
+// The dev escape hatch signs sessions with a key published in this repository,
+// so honouring it in production would let anyone mint a session for any wallet.
+describe('the session secret fails closed', () => {
+    it('ignores the insecure dev key in production', async () => {
+        vi.stubEnv('AUTH_SECRET', '');
+        vi.stubEnv('AUTH_ALLOW_INSECURE_SECRET', '1');
+        vi.stubEnv('NODE_ENV', 'production');
+        await expect(issueSession('anyone')).rejects.toThrow(/AUTH_SECRET/);
+        vi.unstubAllEnvs();
+    });
+
+    it('still allows it in local development', async () => {
+        vi.stubEnv('AUTH_SECRET', '');
+        vi.stubEnv('AUTH_ALLOW_INSECURE_SECRET', '1');
+        vi.stubEnv('NODE_ENV', 'development');
+        expect(typeof (await issueSession('anyone'))).toBe('string');
+        vi.unstubAllEnvs();
+    });
+
+    it('refuses a missing secret with no opt-in at all', async () => {
+        vi.stubEnv('AUTH_SECRET', '');
+        vi.stubEnv('AUTH_ALLOW_INSECURE_SECRET', '');
+        await expect(issueSession('anyone')).rejects.toThrow(/AUTH_SECRET/);
+        vi.unstubAllEnvs();
     });
 });
 

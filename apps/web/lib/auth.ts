@@ -28,10 +28,17 @@ function secret(): Uint8Array {
     // fall back to the well-known insecure key. Environments where NODE_ENV is
     // unset (staging/preview) must NOT silently accept a forgeable secret that
     // anyone could use to mint sessions for any wallet.
-    if (process.env.AUTH_ALLOW_INSECURE_SECRET === '1') {
+    //
+    // In production the opt-in is ignored outright. The key is published in
+    // this repository, so honouring the flag there would mean anyone could mint
+    // a session for any wallet, and a flag set by accident is exactly how that
+    // happens.
+    if (process.env.AUTH_ALLOW_INSECURE_SECRET === '1' && process.env.NODE_ENV !== 'production') {
         return new TextEncoder().encode('kairos-dev-insecure-secret-change-me');
     }
-    throw new Error('AUTH_SECRET must be set (or AUTH_ALLOW_INSECURE_SECRET=1 for local dev only)');
+    throw new Error(
+        'AUTH_SECRET must be set (AUTH_ALLOW_INSECURE_SECRET=1 works for local dev only and is ignored in production)',
+    );
 }
 
 function sha256Hex(input: string): string {
