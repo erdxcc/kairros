@@ -129,10 +129,26 @@ pnpm --filter @kairos/web api:smoke    # full sign-in flow plus every endpoint
 pnpm landing:dev            # http://localhost:3001
 ```
 
-Its "Start" and "Sign in" buttons point at `NEXT_PUBLIC_DASHBOARD_URL`, which
-defaults to `http://localhost:3000`. Set it to the dashboard's public origin
-before deploying. The production domain for canonical URLs, Open Graph, robots,
-and the sitemap lives in `apps/landing/lib/site.ts`.
+Its "Start" and "Sign in" buttons point at `NEXT_PUBLIC_DASHBOARD_URL`, and the
+canonical origin for metadata, robots and the sitemap is `NEXT_PUBLIC_SITE_URL`.
+Locally both default to `http://localhost:3000` and `:3001`.
+
+## Deploying
+
+The dashboard and the landing site are separate origins and deploy separately.
+Their public variables are inlined into the browser bundle, so they must be set
+in the build environment; setting them only at runtime has no effect. A
+production build fails naming the variable rather than shipping a button that
+points at localhost or mainnet data labelled "devnet".
+
+| App | Required at build time |
+| --- | --- |
+| `apps/landing` | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_DASHBOARD_URL` |
+| `apps/web` | `NEXT_PUBLIC_SOLANA_CLUSTER` (`devnet` or `mainnet-beta`) |
+
+`NEXT_PUBLIC_NETWORK` is optional and drives the landing badge; it defaults to
+`devnet`. At runtime the dashboard also needs `AUTH_SECRET` and `DATABASE_URL`,
+and refuses to issue sessions without a real secret. See `.env.example`.
 
 ## Checks
 
