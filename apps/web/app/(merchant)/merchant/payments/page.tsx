@@ -13,18 +13,17 @@ import {
     Th,
     Tr,
 } from '@/components/ui';
-import { useMyCharges } from '@/lib/api';
+import { useCharges } from '@/lib/api';
 import { formatAmount, formatDateTime, short } from '@/lib/format';
 
-/** Money that left this wallet, and the attempts that did not go through. */
-export default function MyPaymentsPage() {
-    const charges = useMyCharges(200);
+export default function PaymentsPage() {
+    const charges = useCharges(200);
 
     return (
         <div className="space-y-6">
             <PageHeader
                 title="Payments"
-                description="Every charge pulled from your wallet, with a link to the transaction on-chain. Failed attempts are listed too, because a failure is usually something you can fix."
+                description="Every charge attempt: successful on-chain transfers and failed pulls recorded by the billing worker."
             />
 
             <Card>
@@ -41,7 +40,7 @@ export default function MyPaymentsPage() {
                         <thead>
                             <tr>
                                 <Th>Date</Th>
-                                <Th>Merchant</Th>
+                                <Th>Subscriber</Th>
                                 <Th className="text-right">Amount</Th>
                                 <Th>Status</Th>
                                 <Th>Detail</Th>
@@ -54,7 +53,7 @@ export default function MyPaymentsPage() {
                                         {formatDateTime(c.executedAt ?? c.createdAt)}
                                     </Td>
                                     <Td>
-                                        <AddressLink value={c.merchant} />
+                                        <AddressLink value={c.subscriber} />
                                     </Td>
                                     <Td className="font-mono tabular text-right text-fg">
                                         {formatAmount(c.amount)}{' '}
@@ -81,7 +80,7 @@ export default function MyPaymentsPage() {
                 ) : (
                     <EmptyState
                         title="No payments yet"
-                        hint="The first charge lands here once a subscription's first period is pulled."
+                        hint="Charges appear once the billing scheduler pulls a due subscription via the puller key."
                     />
                 )}
             </Card>

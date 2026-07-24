@@ -1,136 +1,136 @@
 'use client';
 
-import { RevenueChart } from '@/components/revenue-chart';
-import {
-    AddressLink,
-    Card,
-    CardHeader,
-    EmptyState,
-    ErrorState,
-    Skeleton,
-    StatCard,
-    StatusBadge,
-    Table,
-    Td,
-    Th,
-    Tr,
-} from '@/components/ui';
-import { useCharges, useMetrics } from '@/lib/api';
-import { formatAmount, formatPercent, relativeTime, short } from '@/lib/format';
+import { AddressLink, Card, EmptyState, ErrorState, PageHeader, Skeleton, StatCard } from '@/components/ui';
+import { type MySubscription, useMySubscriptions, useMySummary } from '@/lib/api';
+import { formatAmount, formatDateTime, formatPeriod, short } from '@/lib/format';
 import Link from 'next/link';
 
-export default function OverviewPage() {
-    const metrics = useMetrics();
-    const charges = useCharges(6);
-
-    const m = metrics.data;
-    const mintLabel =
-        m && m.mints.length > 1 ? `across ${m.mints.length} tokens` : m?.mints[0] ? short(m.mints[0]) : '—';
+/**
+ * What the wallet is paying for. This is the front page of the dashboard
+ * because most wallets that sign in are payers, not merchants.
+ */
+export default function MySubscriptionsPage() {
+    const summary = useMySummary();
+    const subs = useMySubscriptions();
+    const s = summary.data;
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="font-semibold text-fg text-xl tracking-tight">Overview</h1>
-                <p className="mt-1 text-muted text-sm">
-                    Recurring revenue and subscription health, projected live from on-chain activity.
-                </p>
+            <PageHeader
+                title="My subscriptions"
+                description="What you are paying for, what it costs, and when the next charge is due. Every amount here is capped on-chain and revocable by you."
+            />
+
+            <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard
+                    label="Active"
+                    value={s?.activeSubscriptions ?? 0}
+                    sub={s?.endingSubscriptions ? `${s.endingSubscriptions} ending soon` : undefined}
+                    loading={summary.isLoading}
+                />
+                <StatCard
+                    label="Paid, last 30 days"
+                    value={<SpendValue spent={s?.spentLast30d ?? []} />}
+                    sub={s && s.spentLast30d.length > 1 ? `across ${s.spentLast30d.length} tokens` : undefined}
+                    loading={summary.isLoading}
+                />
+                <StatCard
+                    label="Next charge"
+                    value={s?.nextChargeTs ? formatDateTime(s.nextChargeTs) : '—'}
+                    sub={s?.nextChargeTs ? undefined : 'nothing due'}
+                    loading={summary.isLoading}
+                />
             </div>
 
-            {metrics.isError ? (
-                <Card>
-                    <ErrorState error={metrics.error} onRetry={() => metrics.refetch()} />
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard
-                        label="MRR"
-                        loading={metrics.isLoading}
-                        value={m ? formatAmount(m.mrr) : '—'}
-                        sub={mintLabel}
-                    />
-                    <StatCard
-                        label="Active subscribers"
-                        loading={metrics.isLoading}
-                        value={m?.activeSubscribers ?? 0}
-                        sub="currently active"
-                    />
-                    <StatCard
-                        label="Churn · 30d"
-                        loading={metrics.isLoading}
-                        value={m ? formatPercent(m.churnRate) : '—'}
-                        sub={m ? `${m.canceledLast30d} canceled` : undefined}
-                    />
-                    <StatCard
-                        label="Revenue · 30d"
-                        loading={metrics.isLoading}
-                        value={m ? formatAmount(m.revenueLast30d) : '—'}
-                        sub={mintLabel}
-                    />
+            {subs.isLoading ? (
+                <div className="space-y-3">
+                    {['a', 'b'].map((k) => (
+                        <Skeleton key={k} className="h-28 w-full" />
+                    ))}
                 </div>
-            )}
-
-            <Card>
-                <CardHeader title="Revenue" description="Successful charges, last 30 days" />
-                {metrics.isLoading ? (
-                    <div className="p-5">
-                        <Skeleton className="h-44 w-full" />
-                    </div>
-                ) : m ? (
-                    <RevenueChart series={m.revenueSeries} />
-                ) : null}
-            </Card>
-
-            <Card>
-                <CardHeader
-                    title="Recent payments"
-                    action={
-                        <Link href="/payments" className="text-accent text-xs hover:underline">
-                            View all
-                        </Link>
-                    }
-                />
-                {charges.isLoading ? (
-                    <div className="space-y-2 p-5">
-                        {['a', 'b', 'c'].map((k) => (
-                            <Skeleton key={k} className="h-8 w-full" />
-                        ))}
-                    </div>
-                ) : charges.isError ? (
-                    <ErrorState error={charges.error} onRetry={() => charges.refetch()} />
-                ) : charges.data && charges.data.length > 0 ? (
-                    <Table>
-                        <thead>
-                            <tr>
-                                <Th>Subscriber</Th>
-                                <Th>Amount</Th>
-                                <Th>Status</Th>
-                                <Th className="text-right">When</Th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {charges.data.map((c) => (
-                                <Tr key={c.id}>
-                                    <Td>
-                                        <AddressLink value={c.subscriber} />
-                                    </Td>
-                                    <Td className="font-mono tabular text-fg">{formatAmount(c.amount)}</Td>
-                                    <Td>
-                                        <StatusBadge status={c.status} />
-                                    </Td>
-                                    <Td className="text-right text-muted text-xs">
-                                        {relativeTime(c.executedAt ?? c.createdAt)}
-                                    </Td>
-                                </Tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                ) : (
+            ) : subs.isError ? (
+                <Card>
+                    <ErrorState error={subs.error} onRetry={() => subs.refetch()} />
+                </Card>
+            ) : subs.data && subs.data.length > 0 ? (
+                <ul className="space-y-3">
+                    {subs.data.map((sub) => (
+                        <li key={sub.subscriptionPda}>
+                            <SubscriptionCard subscription={sub} />
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <Card>
                     <EmptyState
-                        title="No payments yet"
-                        hint="Charges appear here once the billing scheduler pulls a due subscription."
+                        title="No subscriptions yet"
+                        hint="Subscriptions you approve in your wallet show up here, usually within a few seconds of the transaction confirming."
                     />
-                )}
-            </Card>
+                </Card>
+            )}
         </div>
+    );
+}
+
+/** Sums are per mint, because adding two different tokens together is a lie. */
+function SpendValue({ spent }: { spent: Array<{ mint: string; amount: string }> }) {
+    const first = spent[0];
+    if (!first) return <>0.00</>;
+    return (
+        <>
+            {formatAmount(first.amount)} <span className="text-faint text-sm">{short(first.mint)}</span>
+        </>
+    );
+}
+
+function SubscriptionCard({ subscription }: { subscription: MySubscription }) {
+    const ending = subscription.expiresAtTs !== '0';
+    const spentThisPeriod = formatAmount(subscription.amountPulledInPeriod);
+    const perPeriod = formatAmount(subscription.amount);
+
+    return (
+        <Card className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-faint text-xs uppercase tracking-wider">Merchant</span>
+                        <AddressLink value={subscription.merchant} edge={6} />
+                    </div>
+                    <p className="mt-2 font-mono font-semibold text-fg text-lg tabular">
+                        {perPeriod} <span className="text-faint text-xs">{short(subscription.mint)}</span>{' '}
+                        <span className="font-sans font-normal text-muted text-sm">
+                            {formatPeriod(subscription.periodHours)}
+                        </span>
+                    </p>
+                    {/* A cancellation is a scheduled expiry, not an immediate stop: the
+                        period already paid for keeps running, and saying "cancelled"
+                        here would read as "your access is gone". */}
+                    <p className="mt-1 text-sm">
+                        {ending ? (
+                            <span className="text-warning">
+                                Active until {formatDateTime(subscription.expiresAtTs)}
+                            </span>
+                        ) : subscription.status === 'active' ? (
+                            <span className="text-success">Active</span>
+                        ) : (
+                            <span className="text-faint">{subscription.status}</span>
+                        )}
+                    </p>
+                </div>
+
+                <div className="text-right">
+                    <p className="text-faint text-xs uppercase tracking-wider">Pulled this period</p>
+                    <p className="mt-1 font-mono text-fg text-sm tabular">
+                        {spentThisPeriod} / {perPeriod}
+                    </p>
+                    <Link
+                        href={`/subscriptions/${encodeURIComponent(subscription.subscriptionPda)}`}
+                        className="mt-3 inline-block rounded text-accent text-xs transition-colors hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                    >
+                        Manage
+                    </Link>
+                </div>
+            </div>
+        </Card>
     );
 }

@@ -19,8 +19,9 @@ const firaCode = Fira_Code({
 });
 
 export const metadata = {
-    title: 'kairos: merchant dashboard',
-    description: 'Open-source merchant billing layer for the native Solana Subscriptions program.',
+    title: 'kairos dashboard',
+    description:
+        'Subscriptions on Solana: capped and revocable for payers, automatic and observable for merchants.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -195,6 +195,21 @@ export function useMyCharges(limit = 100): UseQueryResult<MyCharge[]> {
     });
 }
 
+/**
+ * Whether this wallet has a merchant side. Only ever hides or shows a link;
+ * the data itself is guarded by `requireMerchant` on the server.
+ */
+export function useMerchantStatus(enabled = true): UseQueryResult<{ isMerchant: boolean }> {
+    return useQuery({
+        queryKey: ['me', 'merchant-status'],
+        queryFn: () => apiFetch<{ isMerchant: boolean }>('/me/merchant-status'),
+        // Signed out there is no answer to give, and asking anyway would only
+        // spend retries on a 401 that clears the session again.
+        enabled,
+        staleTime: 60_000,
+    });
+}
+
 export function useMySummary(): UseQueryResult<MySummary> {
     return useQuery({
         queryKey: ['me', 'summary'],
