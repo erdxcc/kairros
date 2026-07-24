@@ -18,7 +18,7 @@ export function buildSignInMessage(params: SignInMessageParams): string {
         `${params.domain} wants you to sign in with your Solana account:`,
         params.address,
         '',
-        'Sign in to the kairos merchant dashboard.',
+        'Sign in to the kairos dashboard.',
         '',
         `Nonce: ${params.nonce}`,
         `Issued At: ${params.issuedAt}`,

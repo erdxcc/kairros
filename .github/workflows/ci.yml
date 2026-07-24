@@ -31,4 +31,13 @@ jobs:
               run: pnpm test
 
             - name: Build
+              # The public origins and the cluster are required in a production
+              # build (a missing one fails the build instead of shipping a link
+              # to localhost or an explorer pointed at the wrong cluster). CI is
+              # not a deployment, so placeholders are enough to compile.
+              env:
+                  NEXT_PUBLIC_SITE_URL: https://kairos.example
+                  NEXT_PUBLIC_DASHBOARD_URL: https://app.kairos.example
+                  NEXT_PUBLIC_NETWORK: devnet
+                  NEXT_PUBLIC_SOLANA_CLUSTER: devnet
               run: pnpm build

@@ -41,7 +41,7 @@ function BillingKeyCard() {
             />
             <div className="space-y-4 p-5">
                 <Field label="Merchant (you)">
-                    <AddressLink value={session?.merchant} edge={6} />
+                    <AddressLink value={session?.address} edge={6} />
                 </Field>
                 <Field label="Puller pubkey">
                     {config.isLoading ? (

@@ -5,8 +5,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST { address, message, signature, nonceToken } -> { token }.
- * `token` is the merchant session JWT for `Authorization: Bearer`.
+ * POST { address, message, signature, nonceToken } -> { token, address }.
+ * `token` is the session JWT for `Authorization: Bearer`. It identifies a
+ * wallet, nothing more: whether that wallet may reach the merchant routes is
+ * decided per request by `requireMerchant`.
  */
 export const POST = handler(async (req) => {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -22,5 +24,5 @@ export const POST = handler(async (req) => {
     const ok = await verifySignIn({ address, message, signature, nonceToken });
     if (!ok) return error(401, 'invalid signature or expired nonce');
     const token = await issueSession(address);
-    return json({ token, merchant: address });
+    return json({ token, address });
 });

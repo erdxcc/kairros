@@ -9,7 +9,17 @@ import { type KairosDb, buildSignInMessage, createDb, dbSchema } from '@kairos/c
 import { generateKeyPairSigner, getBase58Decoder } from '@solana/kit';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authenticate, issueNonceToken, issueSession, verifySignIn } from '../lib/auth.js';
-import { getMetrics, listCharges, listPlans, listSubscriptions } from '../lib/queries.js';
+import {
+    getMetrics,
+    getMySubscription,
+    getMySummary,
+    isMerchant,
+    listCharges,
+    listMyCharges,
+    listMySubscriptions,
+    listPlans,
+    listSubscriptions,
+} from '../lib/queries.js';
 
 process.env.AUTH_SECRET = 'test-secret';
 
@@ -202,6 +212,65 @@ describe('queries are merchant-scoped', () => {
         expect(a).toHaveLength(2);
         expect(a.some((c) => c.status === 'failed' && c.errorCode === 'insufficient_funds')).toBe(true);
         expect(await listCharges(db, merchantB)).toHaveLength(1);
+    });
+
+    // The gate behind requireMerchant: a signed-in wallet is not a merchant by
+    // virtue of being signed in. 'userA1' is a subscriber in the fixtures.
+    it('isMerchant separates plan owners from payers', async () => {
+        expect(await isMerchant(db, merchantA)).toBe(true);
+        expect(await isMerchant(db, merchantB)).toBe(true);
+        expect(await isMerchant(db, 'userA1')).toBe(false);
+        expect(await isMerchant(db, 'WalletWithNothingOnChainAAAAAAAAAAAAAAAAAAAA')).toBe(false);
+    });
+});
+
+// The other side of the same projections: what a payer sees. Before this
+// existed, a subscriber who signed in got an empty dashboard, because every
+// query was scoped by plan owner.
+describe('queries are payer-scoped', () => {
+    it('listMySubscriptions returns the payer own subscriptions with plan terms', async () => {
+        const mine = await listMySubscriptions(db, 'userA1');
+        expect(mine.map((s) => s.subscriptionPda)).toEqual(['subA1']);
+        expect(mine[0]?.merchant).toBe(merchantA);
+        expect(mine[0]?.amount).toBe('5000000');
+        expect(mine[0]?.periodHours).toBe(730n);
+        // The merchant owns the plan but pays for nothing: the two scopes are
+        // genuinely separate, not the same rows under another name.
+        expect(await listMySubscriptions(db, merchantA)).toHaveLength(0);
+    });
+
+    it('getMySubscription will not hand over another payer subscription', async () => {
+        expect(await getMySubscription(db, 'userA1', 'subA1')).not.toBeNull();
+        expect(await getMySubscription(db, 'userA1', 'subB1')).toBeNull();
+        expect(await getMySubscription(db, 'userA1', 'nope')).toBeNull();
+    });
+
+    it('listMyCharges returns only charges pulled from that wallet', async () => {
+        const a1 = await listMyCharges(db, 'userA1');
+        expect(a1.map((c) => c.signature)).toEqual(['sigA1']);
+        expect(a1[0]?.merchant).toBe(merchantA);
+        // userA2's only charge failed; a payer still gets to see the attempt.
+        const a2 = await listMyCharges(db, 'userA2');
+        expect(a2.map((c) => c.status)).toEqual(['failed']);
+        expect(await listMyCharges(db, 'userA3')).toHaveLength(0);
+    });
+
+    it('getMySummary reports the next charge and the last 30 days', async () => {
+        // subA1 has never been charged in its period, so it is chargeable now.
+        const nowTs = 100_000n;
+        const s = await getMySummary(db, 'userA1', nowTs);
+        expect(s.activeSubscriptions).toBe(1);
+        expect(s.endingSubscriptions).toBe(0);
+        expect(s.nextChargeTs).toBe('100000');
+        expect(s.spentLast30d).toEqual([{ mint: 'mintX', amount: '5000000' }]);
+    });
+
+    it('a scheduled cancellation is still running, and is never charged again', async () => {
+        const s = await getMySummary(db, 'userA3', 100_000n);
+        expect(s.activeSubscriptions).toBe(0);
+        expect(s.endingSubscriptions).toBe(1);
+        expect(s.nextChargeTs).toBeNull();
+        expect(s.spentLast30d).toEqual([]);
     });
 });
 

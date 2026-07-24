@@ -10,7 +10,7 @@ import { Spinner } from './ui';
 /**
  * Wallet sign-in as a top-right account control (replaces the full-screen gate).
  * Signed out → a "Connect wallet" button that drops down the detected wallets;
- * signed in → the merchant address with a sign-out menu. Reuses the same SIWS
+ * signed in → the connected address with a sign-out menu. Reuses the same SIWS
  * handshake (lib/auth-client `signIn`): no auth logic changes here.
  */
 export function WalletMenu() {
@@ -72,12 +72,12 @@ export function WalletMenu() {
                     className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                    <span className="font-mono text-fg text-xs">{short(session.merchant, 4)}</span>
+                    <span className="font-mono text-fg text-xs">{short(session.address, 4)}</span>
                 </button>
                 {open && (
                     <div className={panel}>
                         <p className="px-2 pt-1 text-faint text-xs">Signed in as</p>
-                        <p className="px-2 pb-2 font-mono text-fg text-xs">{short(session.merchant, 6)}</p>
+                        <p className="px-2 pb-2 font-mono text-fg text-xs">{short(session.address, 6)}</p>
                         <button
                             type="button"
                             onClick={() => {

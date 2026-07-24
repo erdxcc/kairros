@@ -8,11 +8,13 @@
  *   3. POST /auth/verify {address, message, signature, nonceToken} -> server
  *      checks the nonceToken (unexpired, matches address + message hash) and
  *      verifies the wallet signature over the message bytes, then issues a
- *      24h session JWT whose subject is the merchant wallet address.
+ *      24h session JWT whose subject is the wallet address.
  */
 import { createHash } from 'node:crypto';
 import { type Address, getBase58Encoder, getUtf8Encoder, verifySignature } from '@solana/kit';
 import { type JWTPayload, SignJWT, jwtVerify } from 'jose';
+import { getDb } from './db';
+import { isMerchant } from './queries';
 
 const NONCE_TTL = '5m';
 const SESSION_TTL = '24h';
@@ -73,18 +75,21 @@ export async function verifySignIn(input: {
     }
 }
 
-export async function issueSession(merchant: string): Promise<string> {
+export async function issueSession(address: string): Promise<string> {
     return await new SignJWT({})
         .setProtectedHeader({ alg: 'HS256' })
-        .setSubject(merchant)
+        .setSubject(address)
         .setIssuedAt()
         .setExpirationTime(SESSION_TTL)
         .sign(secret());
 }
 
 /**
- * Extracts and verifies the merchant from the Authorization: Bearer header.
- * Returns the merchant wallet address or null.
+ * Extracts and verifies the wallet from the Authorization: Bearer header.
+ * Returns the wallet address or null.
+ *
+ * The address is an identity, not a role. Every signed-in wallet is a payer and
+ * may read its own subscriptions; the merchant routes add `requireMerchant`.
  */
 export async function authenticate(req: Request): Promise<Address | null> {
     const header = req.headers.get('authorization');
@@ -95,4 +100,23 @@ export async function authenticate(req: Request): Promise<Address | null> {
     } catch {
         return null;
     }
+}
+
+/** The merchant wallet, or the status + message the route should return. */
+export type MerchantGate =
+    | { ok: true; address: Address }
+    | { ok: false; status: number; error: string };
+
+/**
+ * Gate for the merchant-scoped routes. Being signed in is not enough: the
+ * wallet has to be a merchant, and that check belongs on the server. Hiding
+ * merchant navigation in the UI decides what gets rendered, not who gets data.
+ */
+export async function requireMerchant(req: Request): Promise<MerchantGate> {
+    const address = await authenticate(req);
+    if (!address) return { ok: false, status: 401, error: 'unauthorized' };
+    if (!(await isMerchant(await getDb(), address))) {
+        return { ok: false, status: 403, error: 'merchant access required' };
+    }
+    return { ok: true, address };
 }

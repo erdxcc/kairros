@@ -1,18 +1,21 @@
-# Merchant REST API
+# REST API
 
 Base path: `/api/v1`. All responses are JSON; token amounts and timestamps are
-strings (u64-safe). Every data endpoint is scoped to the authenticated
-merchant: the wallet that owns the plans.
+strings (u64-safe). Every data endpoint is scoped to the authenticated wallet.
+
+Signing in proves control of a wallet and nothing more. The merchant endpoints
+below additionally require that wallet to be a merchant, which today means it
+owns at least one plan; they answer `403 merchant access required` otherwise.
 
 ## Authentication: Sign-In-With-Solana
 
-No passwords. The merchant proves control of their wallet by signing a
-server-issued message; the server returns a 24h session JWT.
+No passwords. The wallet owner proves control by signing a server-issued
+message; the server returns a 24h session JWT.
 
 ```
 POST /api/v1/auth/nonce   { address }            -> { message, nonceToken }
 # wallet signs `message` (base58 signature)
-POST /api/v1/auth/verify  { address, message, signature, nonceToken } -> { token, merchant }
+POST /api/v1/auth/verify  { address, message, signature, nonceToken } -> { token, address }
 ```
 
 - `message` is a standard SIWS text embedding a random nonce and timestamp.
@@ -24,7 +27,28 @@ POST /api/v1/auth/verify  { address, message, signature, nonceToken } -> { token
 The signature is verified with Ed25519: the wallet address is the public key,
 verified against the exact UTF-8 bytes of `message`.
 
-## Endpoints
+## Payer endpoints
+
+Scoped to the signed-in wallet as a subscriber. No extra permission: signing in
+is what makes a wallet a payer.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/me/subscriptions` | The wallet's own subscriptions, with the plan terms it agreed to |
+| `GET` | `/me/subscriptions/<pda>` | One of them; `404` for a subscription the wallet does not pay for |
+| `GET` | `/me/charges?limit=<n>` | Charges pulled from the wallet (succeeded and failed attempts) |
+| `GET` | `/me/summary` | Active and ending counts, spend per mint over 30 days, next charge |
+
+`summary.nextChargeTs` is unix seconds, computed with the same `subscriptionDue`
+rule the billing worker charges by, so the date shown cannot drift from the date
+money actually moves. It is `null` when nothing is due (for example every
+subscription has a cancellation scheduled).
+
+A cancelled subscription keeps running until `expiresAtTs`, which is the end of
+the period already paid for. `endingSubscriptions` counts those; they are not
+churn yet, and the UI should say "active until <date>", not "cancelled".
+
+## Merchant endpoints
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -65,6 +89,10 @@ span multiple mints, `mints` lists them so the client can format/segment.
   verify tokens). For local dev only, set `AUTH_ALLOW_INSECURE_SECRET=1` to fall
   back to a well-known insecure key.
 - `AUTH_DOMAIN`: domain shown in the SIWS message (defaults to the request host).
+- `SOLANA_CLUSTER`: `devnet` or `mainnet-beta`. Required, with no default:
+  `GET /config` answers `500` rather than guessing.
+- `NEXT_PUBLIC_SOLANA_CLUSTER`: the same value, inlined into the browser bundle
+  for explorer links and the header badge. A production build fails without it.
 
 ## Notes
 

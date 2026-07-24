@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const address = account.address;
         const { message, nonceToken } = await requestNonce(address);
         const signature = await signMessage(detected.wallet, account, message);
-        const { token, merchant } = await verifySignature({ address, message, signature, nonceToken });
-        const next = { token, merchant };
+        const { token } = await verifySignature({ address, message, signature, nonceToken });
+        const next = { token, address };
         writeSession(next);
         setSession(next);
     }

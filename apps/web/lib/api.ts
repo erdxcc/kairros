@@ -1,5 +1,5 @@
 /**
- * Typed client for the merchant REST API. All amounts/timestamps arrive as
+ * Typed client for the dashboard REST API. All amounts/timestamps arrive as
  * strings (u64-safe). Every request carries the session bearer token; a 401
  * clears the session so the app falls back to the sign-in screen.
  */
@@ -66,6 +66,46 @@ export interface Subscription {
     expiresAtTs: string;
 }
 
+/** A subscription as its payer sees it: plan terms included, PDAs secondary. */
+export interface MySubscription {
+    subscriptionPda: string;
+    planPda: string;
+    subscriber: string;
+    merchant: string;
+    mint: string;
+    amount: string;
+    periodHours: string;
+    planStatus: string;
+    metadataUri: string;
+    status: string;
+    createdTs: string;
+    currentPeriodStartTs: string;
+    amountPulledInPeriod: string;
+    expiresAtTs: string;
+}
+
+export interface MyCharge {
+    id: number;
+    subscriptionPda: string;
+    planPda: string;
+    merchant: string;
+    mint: string;
+    amount: string;
+    receiver: string | null;
+    status: string;
+    errorCode: string | null;
+    signature: string | null;
+    executedAt: string | null;
+    createdAt: string;
+}
+
+export interface MySummary {
+    activeSubscriptions: number;
+    endingSubscriptions: number;
+    spentLast30d: Array<{ mint: string; amount: string }>;
+    nextChargeTs: string | null;
+}
+
 export interface Charge {
     id: number;
     subscriptionPda: string;
@@ -122,11 +162,47 @@ export function verifySignature(input: {
     message: string;
     signature: string;
     nonceToken: string;
-}): Promise<{ token: string; merchant: string }> {
+}): Promise<{ token: string; address: string }> {
     return apiFetch('/auth/verify', { method: 'POST', body: JSON.stringify(input) });
 }
 
-// ---- Query hooks ----
+// ---- Query hooks: the payer's own data (any signed-in wallet) ----
+
+export function useMySubscriptions(): UseQueryResult<MySubscription[]> {
+    return useQuery({
+        queryKey: ['me', 'subscriptions'],
+        queryFn: () =>
+            apiFetch<{ subscriptions: MySubscription[] }>('/me/subscriptions').then(
+                (r) => r.subscriptions,
+            ),
+    });
+}
+
+export function useMySubscription(pda: string): UseQueryResult<MySubscription> {
+    return useQuery({
+        queryKey: ['me', 'subscription', pda],
+        queryFn: () =>
+            apiFetch<{ subscription: MySubscription }>(
+                `/me/subscriptions/${encodeURIComponent(pda)}`,
+            ).then((r) => r.subscription),
+    });
+}
+
+export function useMyCharges(limit = 100): UseQueryResult<MyCharge[]> {
+    return useQuery({
+        queryKey: ['me', 'charges', limit],
+        queryFn: () => apiFetch<{ charges: MyCharge[] }>(`/me/charges?limit=${limit}`).then((r) => r.charges),
+    });
+}
+
+export function useMySummary(): UseQueryResult<MySummary> {
+    return useQuery({
+        queryKey: ['me', 'summary'],
+        queryFn: () => apiFetch<{ summary: MySummary }>('/me/summary').then((r) => r.summary),
+    });
+}
+
+// ---- Query hooks: merchant data (403 unless the wallet owns a plan) ----
 
 export function usePlans(): UseQueryResult<Plan[]> {
     return useQuery({

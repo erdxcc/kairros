@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-client';
+import { CLUSTER } from '@/lib/format';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -81,11 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-line border-b bg-canvas/80 px-5 py-3 backdrop-blur md:px-8">
                     <span className="font-semibold text-fg text-sm md:hidden">kairos</span>
                     <div className="ml-auto flex items-center gap-3">
-                        {/* Cluster indicator: amber for devnet so it's unmistakable (never mainnet). */}
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-warning/20 bg-warning-soft px-2 py-1 text-warning text-xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-                            devnet
-                        </span>
+                        <ClusterBadge />
                         <WalletMenu />
                     </div>
                 </header>
@@ -95,6 +92,25 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </main>
             </div>
         </div>
+    );
+}
+
+// Which chain the numbers on screen came from. Amber on devnet, so test money
+// is unmistakable; quiet on mainnet, where the badge is a fact, not a warning.
+function ClusterBadge() {
+    const devnet = CLUSTER === 'devnet';
+    return (
+        <span
+            className={cn(
+                'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
+                devnet
+                    ? 'border-warning/20 bg-warning-soft text-warning'
+                    : 'border-line bg-surface text-muted',
+            )}
+        >
+            <span className={cn('h-1.5 w-1.5 rounded-full', devnet ? 'bg-warning' : 'bg-success')} />
+            {devnet ? 'devnet' : 'mainnet'}
+        </span>
     );
 }
 

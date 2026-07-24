@@ -3,9 +3,36 @@
  * strings (u64-safe); we render them with a fixed decimals assumption: most
  * SPL tokens, including USDC, use 6. (Per-mint symbol/decimals metadata is a
  * later enhancement; the schema does not store decimals yet.)
+ *
+ * This module runs in the browser, so anything environment-dependent has to
+ * come from an inlined NEXT_PUBLIC_* variable rather than from server config.
  */
 export const DEFAULT_DECIMALS = 6;
-export const EXPLORER_CLUSTER = 'devnet';
+export type Cluster = 'devnet' | 'mainnet-beta';
+
+/**
+ * Which chain the dashboard is talking about. Explorer links and the header
+ * badge both hang off this, so a wrong value points people at a different chain
+ * than the one their money is on. A production build with the variable unset
+ * fails instead of quietly defaulting.
+ *
+ * Next inlines NEXT_PUBLIC_* by matching the literal `process.env.NAME` text,
+ * so it has to be read here rather than through a computed lookup. Reading it
+ * from @kairos/core is not an option either: `loadConfig` reaches for .env
+ * through node:fs, which cannot be bundled into a client component.
+ */
+function resolveCluster(): Cluster {
+    const value = process.env.NEXT_PUBLIC_SOLANA_CLUSTER;
+    if (value === 'devnet' || value === 'mainnet-beta') return value;
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+            'NEXT_PUBLIC_SOLANA_CLUSTER must be devnet or mainnet-beta for a production build of the dashboard',
+        );
+    }
+    return 'devnet';
+}
+
+export const CLUSTER: Cluster = resolveCluster();
 
 /** base units -> human string, e.g. "10000000" -> "10.00" (6 decimals). */
 export function formatAmount(raw: string | number | bigint, decimals = DEFAULT_DECIMALS): string {
@@ -111,10 +138,14 @@ export function formatPercent(ratio: number, digits = 1): string {
     return `${(ratio * 100).toFixed(digits)}%`;
 }
 
+// mainnet-beta is the explorer's own default, so the parameter is only carried
+// off mainnet. Same rule as `explorerTxUrl` in @kairos/core.
+const EXPLORER_QUERY = CLUSTER === 'devnet' ? '?cluster=devnet' : '';
+
 export function explorerTx(signature: string): string {
-    return `https://explorer.solana.com/tx/${signature}?cluster=${EXPLORER_CLUSTER}`;
+    return `https://explorer.solana.com/tx/${signature}${EXPLORER_QUERY}`;
 }
 
 export function explorerAddress(address: string): string {
-    return `https://explorer.solana.com/address/${address}?cluster=${EXPLORER_CLUSTER}`;
+    return `https://explorer.solana.com/address/${address}${EXPLORER_QUERY}`;
 }

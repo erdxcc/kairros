@@ -1,12 +1,17 @@
 /**
- * Merchant session storage (browser). The session is a JWT issued by
- * /api/v1/auth/verify after a Sign-In-With-Solana handshake. It lives in
- * localStorage so a refresh keeps the merchant signed in; a custom window
- * event lets the auth context react when any code path clears it (e.g. a 401).
+ * Session storage (browser). The session is a JWT issued by /api/v1/auth/verify
+ * after a Sign-In-With-Solana handshake. It lives in localStorage so a refresh
+ * keeps the wallet signed in; a custom window event lets the auth context react
+ * when any code path clears it (e.g. a 401).
+ *
+ * The session identifies a wallet, not a role: the same signed-in address is a
+ * payer on the customer pages and, if it owns plans, a merchant under /merchant.
+ * Sessions written before this field was renamed simply fail to parse, which
+ * signs the wallet out rather than leaving a half-read session around.
  */
 export interface Session {
     token: string;
-    merchant: string;
+    address: string;
 }
 
 const KEY = 'kairos.session';
@@ -18,7 +23,7 @@ export function readSession(): Session | null {
         const raw = window.localStorage.getItem(KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw) as Session;
-        return parsed.token && parsed.merchant ? parsed : null;
+        return parsed.token && parsed.address ? parsed : null;
     } catch {
         return null;
     }
