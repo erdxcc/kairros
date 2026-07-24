@@ -19,6 +19,7 @@
         "worker:dev": "pnpm --filter @kairos/worker dev",
         "web:dev": "pnpm --filter @kairos/web dev",
         "landing:dev": "pnpm --filter @kairos/landing dev",
+        "db:migrate": "pnpm --filter @kairos/core db:migrate",
         "db:stats": "pnpm --filter @kairos/core db:stats"
     },
     "devDependencies": {
