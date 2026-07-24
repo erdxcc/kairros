@@ -9,6 +9,9 @@
  */
 import { site } from '@/lib/site';
 
+/** Where a merchant starts: the application, not the payer's dashboard. */
+const merchantUrl = `${site.dashboardUrl}/merchant/apply`;
+
 export const nav = {
     links: [
         { label: 'Why kairos', href: '#audiences' },
@@ -60,6 +63,7 @@ export const audiences = {
                 'Cancel or pause straight from your wallet',
                 'Payout destinations locked on-chain, no surprises',
             ],
+            cta: { label: 'Open your dashboard', href: site.dashboardUrl },
         },
         {
             tag: '02 / For merchants',
@@ -71,6 +75,7 @@ export const audiences = {
                 'Automatic billing pulled on the due date',
                 'MRR, churn, and HMAC-signed webhooks',
             ],
+            cta: { label: 'Become a merchant', href: merchantUrl },
         },
     ],
 } as const;

@@ -1,4 +1,5 @@
 import { Reveal } from '@/components/effects/Reveal';
+import { Button, ButtonArrow } from '@/components/ui/Button';
 import { CheckList } from '@/components/ui/CheckList';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { cn } from '@/lib/cn';
@@ -8,6 +9,9 @@ import { audiences } from '@/lib/copy';
  * The two sides of one rail, side by side: what a payer gets, what a merchant
  * gets. Tone-coded (accent for customers, success for merchants) so the columns
  * stay distinguishable at a glance.
+ *
+ * Each card ends on its own entry point, because the two audiences start in
+ * different places: payers at the dashboard root, merchants at the application.
  */
 export function Audiences() {
     return (
@@ -31,6 +35,14 @@ export function Audiences() {
                             </h3>
                             <p className="text-base leading-[1.62] text-muted">{card.body}</p>
                             <CheckList items={card.points} tone={card.tone} className="mt-6" />
+                            <Button
+                                href={card.cta.href}
+                                variant={card.tone === 'success' ? 'solid' : 'ghost'}
+                                className="mt-7"
+                            >
+                                {card.cta.label}
+                                <ButtonArrow />
+                            </Button>
                         </div>
                     </Reveal>
                 ))}
