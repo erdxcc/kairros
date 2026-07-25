@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, createContext, createElement, useContext, useEffect, useState } from 'react';
-import { requestNonce, verifySignature } from './api';
+import { requestNonce, revokeSession, verifySignature } from './api';
 import { SESSION_EVENT, type Session, clearSession, readSession, writeSession } from './session';
 import { type DetectedWallet, connect, signMessage } from './wallet';
 
@@ -10,7 +10,7 @@ interface AuthContextValue {
     session: Session | null;
     /** Run the full SIWS handshake with the chosen wallet. */
     signIn: (wallet: DetectedWallet) => Promise<void>;
-    signOut: () => void;
+    signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -43,10 +43,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(next);
     }
 
-    function signOut(): void {
-        clearSession();
-        setSession(null);
-        qc.clear();
+    /**
+     * Revoke first, then forget. The revoke call authenticates with the token
+     * we are about to drop, so clearing local state first would leave the
+     * session valid on the server for the rest of its 24 hours. Local state is
+     * cleared regardless of how the request goes: a failed revoke must not
+     * leave the user apparently still signed in.
+     */
+    async function signOut(): Promise<void> {
+        try {
+            await revokeSession();
+        } finally {
+            clearSession();
+            setSession(null);
+            qc.clear();
+        }
     }
 
     return createElement(AuthContext.Provider, { value: { session, signIn, signOut } }, children);

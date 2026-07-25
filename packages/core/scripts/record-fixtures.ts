@@ -68,7 +68,17 @@ async function main() {
         );
         if (!tx) continue;
 
-        const extracted = extractEventsFromTransaction(tx, SUBSCRIPTIONS_PROGRAM_ADDRESS);
+        const { events: extracted, skipped } = extractEventsFromTransaction(
+            tx,
+            SUBSCRIPTIONS_PROGRAM_ADDRESS,
+        );
+        // Recording fixtures is exactly when an undecodable event matters most:
+        // it is the thing the fixtures are supposed to lock down.
+        for (const skip of skipped) {
+            console.warn(
+                `  ! skipped event kind ${skip.eventKind ?? '?'} in ${signature}[${skip.outerIxIndex}.${skip.innerIxIndex}]: ${skip.reason}`,
+            );
+        }
         if (extracted.length === 0) continue;
 
         const innerGroups = tx.meta?.innerInstructions ?? [];

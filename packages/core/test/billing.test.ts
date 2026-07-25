@@ -40,14 +40,53 @@ describe('classifyChargeError', () => {
     it('decimal preflight format', () => {
         expect(classifyChargeError('Custom program error: #400 (instruction #2)')).toBe('already_charged');
         expect(classifyChargeError('Custom program error: #401')).toBe('not_due');
-        expect(classifyChargeError('Custom program error: #1 (instruction #2)')).toBe('insufficient_funds');
+        expect(
+            classifyChargeError(
+                'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: Custom program error: #1 (instruction #2)',
+            ),
+        ).toBe('insufficient_funds');
         expect(classifyChargeError('Custom program error: #508')).toBe('subscription_cancelled');
         expect(classifyChargeError('Custom program error: #500')).toBe('plan_inactive');
     });
 
     it('hex log format', () => {
         expect(classifyChargeError('failed: custom program error: 0x190')).toBe('already_charged');
-        expect(classifyChargeError('failed: custom program error: 0x1')).toBe('insufficient_funds');
+    });
+
+    // Error 1 means "insufficient funds" only when a token program raised it.
+    // Every program numbers its errors from zero, so a bare 1 from anywhere
+    // else is not a dunning case and must not be retried as one.
+    describe('custom error 1 is only insufficient funds when a token program raised it', () => {
+        it('attributes it when the SPL Token program is in the chain', () => {
+            expect(
+                classifyChargeError(
+                    'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x1',
+                ),
+            ).toBe('insufficient_funds');
+        });
+
+        it('attributes it for Token-2022 as well', () => {
+            expect(
+                classifyChargeError(
+                    'Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb failed: custom program error: 0x1',
+                ),
+            ).toBe('insufficient_funds');
+        });
+
+        it('still trusts an explicit log line', () => {
+            expect(classifyChargeError('custom program error: 0x1: insufficient funds')).toBe(
+                'insufficient_funds',
+            );
+        });
+
+        it('does not attribute a bare error 1 from an unrelated program', () => {
+            expect(classifyChargeError('failed: custom program error: 0x1')).toBe('unknown');
+            expect(
+                classifyChargeError(
+                    'Program De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44 failed: custom program error: #1',
+                ),
+            ).toBe('unknown');
+        });
     });
 
     it('falls back to log text and unknown', () => {

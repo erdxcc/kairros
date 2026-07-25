@@ -166,15 +166,26 @@ export function verifySignature(input: {
     return apiFetch('/auth/verify', { method: 'POST', body: JSON.stringify(input) });
 }
 
+/**
+ * Ends the session server-side. Best effort by design: the caller clears local
+ * state regardless, because a sign-out that fails because the network is down
+ * should still sign you out of this browser.
+ */
+export async function revokeSession(): Promise<void> {
+    try {
+        await apiFetch('/auth/logout', { method: 'POST' });
+    } catch {
+        // Already invalid, or unreachable. Either way there is nothing to retry.
+    }
+}
+
 // ---- Query hooks: the payer's own data (any signed-in wallet) ----
 
 export function useMySubscriptions(): UseQueryResult<MySubscription[]> {
     return useQuery({
         queryKey: ['me', 'subscriptions'],
         queryFn: () =>
-            apiFetch<{ subscriptions: MySubscription[] }>('/me/subscriptions').then(
-                (r) => r.subscriptions,
-            ),
+            apiFetch<{ subscriptions: MySubscription[] }>('/me/subscriptions').then((r) => r.subscriptions),
     });
 }
 
@@ -182,9 +193,9 @@ export function useMySubscription(pda: string): UseQueryResult<MySubscription> {
     return useQuery({
         queryKey: ['me', 'subscription', pda],
         queryFn: () =>
-            apiFetch<{ subscription: MySubscription }>(
-                `/me/subscriptions/${encodeURIComponent(pda)}`,
-            ).then((r) => r.subscription),
+            apiFetch<{ subscription: MySubscription }>(`/me/subscriptions/${encodeURIComponent(pda)}`).then(
+                (r) => r.subscription,
+            ),
     });
 }
 

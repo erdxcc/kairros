@@ -31,7 +31,9 @@ export default function MySubscriptionsPage() {
                 <StatCard
                     label="Paid, last 30 days"
                     value={<SpendValue spent={s?.spentLast30d ?? []} />}
-                    sub={s && s.spentLast30d.length > 1 ? `across ${s.spentLast30d.length} tokens` : undefined}
+                    sub={
+                        s && s.spentLast30d.length > 1 ? `across ${s.spentLast30d.length} tokens` : undefined
+                    }
                     loading={summary.isLoading}
                 />
                 <StatCard

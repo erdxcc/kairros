@@ -16,13 +16,29 @@ message; the server returns a 24h session JWT.
 POST /api/v1/auth/nonce   { address }            -> { message, nonceToken }
 # wallet signs `message` (base58 signature)
 POST /api/v1/auth/verify  { address, message, signature, nonceToken } -> { token, address }
+POST /api/v1/auth/logout  (Authorization: Bearer <token>)             -> { ok: true }
 ```
 
-- `message` is a standard SIWS text embedding a random nonce and timestamp.
+- `message` is a standard SIWS text embedding a random nonce and timestamp. The
+  domain it names comes from `AUTH_DOMAIN`, never from the request's `Host`
+  header: that header is chosen by the caller, and trusting it would let anyone
+  have this server sign a message naming their domain. `AUTH_DOMAIN` is
+  required in production.
 - `nonceToken` is a short-lived (5 min) server token binding the address and a
-  hash of `message`, so a captured signature cannot be replayed later.
+  hash of `message`. It is **single-use**: `/auth/verify` burns it, so a
+  captured `(message, signature)` pair cannot be replayed even inside those
+  five minutes. A wrong signature does not burn it, so a failed attempt cannot
+  invalidate someone else's in-flight sign-in.
 - Send the session token as `Authorization: Bearer <token>` on every other
   endpoint.
+- `/auth/logout` revokes the presented session server-side. Until you call it,
+  a session token stays valid for its full 24 hours no matter what the browser
+  has forgotten. It always answers `200`, so it cannot be used to probe which
+  tokens are live.
+- `/auth/nonce` and `/auth/verify` are unauthenticated and rate limited per
+  client (30/min and 20/min). Over the limit they answer `429` with
+  `Retry-After`. The limiter is per process; behind a proxy, set
+  `TRUSTED_PROXY=1` so `x-forwarded-for` is used for the client identity.
 
 The signature is verified with Ed25519: the wallet address is the public key,
 verified against the exact UTF-8 bytes of `message`.

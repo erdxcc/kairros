@@ -8,13 +8,31 @@
  *   kairos-signature: t=<unix seconds>,v1=<hex hmac-sha256(secret, `${t}.${body}`)>
  */
 import { createHmac } from 'node:crypto';
-import { type KairosDb, assertSafeWebhookUrl, dbSchema, sleep, webhookAllowPrivate } from '@kairos/core';
-import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import {
+    type KairosDb,
+    assertSafeWebhookUrl,
+    dbSchema,
+    runLeasedLoop,
+    webhookAllowPrivate,
+} from '@kairos/core';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 export interface DispatcherOptions {
     db: KairosDb;
     maxAttempts: number;
+    /**
+     * How long a claimed delivery is hidden from other dispatchers. Must
+     * exceed one attempt (the fetch timeout is 10s) so a slow POST is not
+     * picked up a second time while it is still in flight.
+     */
+    claimLeaseMs?: number;
 }
+
+const DEFAULT_CLAIM_LEASE_MS = 120_000;
+/** Deliveries claimed per cycle. */
+const DELIVERY_BATCH = 20;
+/** Outbox rows fanned out per cycle. */
+const FANOUT_BATCH = 50;
 
 /** Backoff schedule between delivery attempts. */
 const RETRY_DELAYS_MS = [30_000, 120_000, 600_000, 3_600_000, 21_600_000];
@@ -28,41 +46,62 @@ export function signPayload(secret: string, timestampSec: number, body: string):
     return `t=${timestampSec},v1=${mac}`;
 }
 
-/** Routes fresh outbox rows into per-endpoint delivery rows. */
+/**
+ * Routes fresh outbox rows into per-endpoint delivery rows.
+ *
+ * The pick is `for update skip locked` so a second dispatcher takes different
+ * rows rather than the same ones: `webhook_deliveries` has a unique index that
+ * would swallow the duplicates anyway, but doing the work twice to throw half
+ * of it away is not a plan.
+ */
 export async function fanOut(db: KairosDb): Promise<number> {
-    const events = await db
-        .select()
-        .from(dbSchema.outbox)
-        .where(isNull(dbSchema.outbox.processedAt))
-        .orderBy(dbSchema.outbox.id)
-        .limit(50);
-    if (events.length === 0) return 0;
+    // One transaction around the whole batch: `skip locked` only holds its
+    // rows for the life of the transaction that took them, so selecting
+    // outside one would lock nothing. Everything in here is local database
+    // work, so the transaction is short by construction.
+    return await db.transaction(async (tx) => {
+        const picked = (await tx.execute(sql`
+            select id, event_type as "eventType", payload
+            from ${dbSchema.outbox}
+            where processed_at is null
+            order by id
+            limit ${FANOUT_BATCH}
+            for update skip locked
+        `)) as unknown as {
+            rows: Array<{ id: number; eventType: string; payload: Record<string, unknown> }>;
+        };
+        const events = picked.rows;
+        if (events.length === 0) return 0;
 
-    let created = 0;
-    for (const event of events) {
-        // Every kairos event payload carries the plan PDA: the merchant is its owner.
-        const planPda = (event.payload as Record<string, unknown>).plan as string | undefined;
-        let endpoints: Array<{ id: number }> = [];
-        if (planPda) {
-            const owners = await db
-                .select({ owner: dbSchema.plans.owner })
-                .from(dbSchema.plans)
-                .where(eq(dbSchema.plans.planPda, planPda))
-                .limit(1);
-            const owner = owners[0]?.owner;
-            if (owner) {
-                endpoints = await db
-                    .select({ id: dbSchema.webhookEndpoints.id })
-                    .from(dbSchema.webhookEndpoints)
-                    .where(
-                        and(
-                            eq(dbSchema.webhookEndpoints.merchant, owner),
-                            eq(dbSchema.webhookEndpoints.active, true),
-                        ),
-                    );
+        let created = 0;
+        for (const event of events) {
+            // Every kairos event payload carries the plan PDA: the merchant is its owner.
+            const planPda = event.payload.plan as string | undefined;
+            let endpoints: Array<{ id: number }> = [];
+            if (planPda) {
+                const owners = await tx
+                    .select({ owner: dbSchema.plans.owner, status: dbSchema.plans.status })
+                    .from(dbSchema.plans)
+                    .where(eq(dbSchema.plans.planPda, planPda))
+                    .limit(1);
+                const plan = owners[0];
+                // An `unresolved` plan has no owner yet, only a placeholder.
+                // Marking the event processed now would route it to nobody and
+                // then never revisit it, so leave it for a later cycle: the
+                // reconciler fills the real owner in within one sweep.
+                if (plan?.status === 'unresolved') continue;
+                if (plan?.owner) {
+                    endpoints = await tx
+                        .select({ id: dbSchema.webhookEndpoints.id })
+                        .from(dbSchema.webhookEndpoints)
+                        .where(
+                            and(
+                                eq(dbSchema.webhookEndpoints.merchant, plan.owner),
+                                eq(dbSchema.webhookEndpoints.active, true),
+                            ),
+                        );
+                }
             }
-        }
-        await db.transaction(async (tx) => {
             for (const endpoint of endpoints) {
                 await tx
                     .insert(dbSchema.webhookDeliveries)
@@ -73,14 +112,39 @@ export async function fanOut(db: KairosDb): Promise<number> {
                 .update(dbSchema.outbox)
                 .set({ processedAt: sql`now()` })
                 .where(eq(dbSchema.outbox.id, event.id));
-        });
-        created += endpoints.length;
-    }
-    return created;
+            created += endpoints.length;
+        }
+        return created;
+    });
 }
 
-/** Attempts all deliveries that are due (pending, or failed with elapsed backoff). */
+/**
+ * Attempts all deliveries that are due (pending, or failed with elapsed backoff).
+ *
+ * Due rows are *claimed* before they are attempted: one statement pushes
+ * `next_attempt_at` a lease into the future and returns the ids it moved, so a
+ * concurrent dispatcher sees them as not-due and takes different work. Without
+ * that, both would POST the same event, and a webhook is a side effect on
+ * somebody else's system that we cannot take back. If this process dies
+ * mid-flight the lease simply lapses and the delivery is retried.
+ */
 export async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: number; failed: number }> {
+    const claimLeaseMs = opts.claimLeaseMs ?? DEFAULT_CLAIM_LEASE_MS;
+    const claimed = (await opts.db.execute(sql`
+        update ${dbSchema.webhookDeliveries}
+        set next_attempt_at = now() + ${`${claimLeaseMs} milliseconds`}::interval
+        where id in (
+            select id from ${dbSchema.webhookDeliveries}
+            where status in ('pending', 'failed') and next_attempt_at <= now()
+            order by id
+            limit ${DELIVERY_BATCH}
+            for update skip locked
+        )
+        returning id
+    `)) as unknown as { rows: Array<{ id: number }> };
+    const claimedIds = claimed.rows.map((r) => r.id);
+    if (claimedIds.length === 0) return { ok: 0, failed: 0 };
+
     const due = await opts.db
         .select({
             delivery: dbSchema.webhookDeliveries,
@@ -95,13 +159,7 @@ export async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: 
             eq(dbSchema.webhookDeliveries.endpointId, dbSchema.webhookEndpoints.id),
         )
         .innerJoin(dbSchema.outbox, eq(dbSchema.webhookDeliveries.outboxId, dbSchema.outbox.id))
-        .where(
-            and(
-                inArray(dbSchema.webhookDeliveries.status, ['pending', 'failed']),
-                lte(dbSchema.webhookDeliveries.nextAttemptAt, sql`now()`),
-            ),
-        )
-        .limit(20);
+        .where(inArray(dbSchema.webhookDeliveries.id, claimedIds));
 
     const allowPrivate = webhookAllowPrivate();
     let ok = 0;
@@ -169,19 +227,22 @@ export async function attemptDeliveries(opts: DispatcherOptions): Promise<{ ok: 
 
 export interface DispatcherRunOptions extends DispatcherOptions {
     pollIntervalMs: number;
+    leaseTtlMs: number;
     stopSignal: { stopped: boolean };
 }
 
 export async function runDispatcher(opts: DispatcherRunOptions): Promise<void> {
     console.log(`[webhooks] dispatcher started (cycle every ${opts.pollIntervalMs / 1000}s)`);
-    while (!opts.stopSignal.stopped) {
-        try {
+    await runLeasedLoop({
+        db: opts.db,
+        name: 'dispatcher',
+        label: 'webhooks',
+        ttlMs: opts.leaseTtlMs,
+        intervalMs: opts.pollIntervalMs,
+        stopSignal: opts.stopSignal,
+        tick: async () => {
             await fanOut(opts.db);
             await attemptDeliveries(opts);
-        } catch (error) {
-            console.error('[webhooks] cycle error:', error);
-        }
-        await sleep(opts.pollIntervalMs);
-    }
-    console.log('[webhooks] stopped');
+        },
+    });
 }

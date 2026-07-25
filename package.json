@@ -24,5 +24,17 @@
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4"
+    },
+    "pnpm": {
+        "comments": [
+            "sharp and postcss are pinned inside next and @tailwindcss/postcss, so a",
+            "direct bump cannot reach them. Both advisories are high, and the CI audit",
+            "step fails on high, so they are forced to the patched range here. Drop an",
+            "entry once the parent dependency resolves past it on its own."
+        ],
+        "overrides": {
+            "sharp": ">=0.35.0",
+            "postcss": ">=8.5.18"
+        }
     }
 }

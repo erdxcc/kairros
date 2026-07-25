@@ -11,7 +11,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.check.json",
-        "test": "vitest run --passWithNoTests",
+        "test": "vitest run",
         "setup:devnet": "tsx scripts/setup-devnet.ts",
         "demo:lifecycle": "tsx scripts/demo-lifecycle.ts",
         "probe:insufficient-funds": "tsx scripts/probe-insufficient-funds.ts",

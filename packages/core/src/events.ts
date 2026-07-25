@@ -84,6 +84,23 @@ export type KairosChainEvent =
 
 const PREFIX_LEN = 9; // 8-byte tag + 1-byte kind
 
+/**
+ * A tagged event whose kind byte we do not know: the program added an event
+ * type upstream. Distinct from a payload-length mismatch, because the two want
+ * opposite handling at the ingestion boundary. A new kind carries no data we
+ * were ever going to project, so skipping it loses nothing; a known kind that
+ * no longer fits its layout means our decoders are wrong about data we DO
+ * project, and that must be loud.
+ */
+export class UnknownEventKindError extends Error {
+    constructor(readonly eventKind: number) {
+        super(
+            `Unknown event kind ${eventKind}: a new event type was likely added upstream. Update EventKind and the decoders.`,
+        );
+        this.name = 'UnknownEventKindError';
+    }
+}
+
 /** Sequential reader over a packed little-endian payload. */
 class ByteReader {
     private offset = 0;
@@ -229,9 +246,7 @@ export function decodeEventData(data: Uint8Array): KairosChainEvent | undefined 
             return event;
         }
         default:
-            throw new Error(
-                `Unknown event kind ${kind}: a new event type was likely added upstream. Update EventKind and the decoders.`,
-            );
+            throw new UnknownEventKindError(kind ?? -1);
     }
 }
 
@@ -257,26 +272,69 @@ interface ParsedTransactionLike {
     } | null;
 }
 
+/** An event instruction that could not be decoded, and why. */
+export interface SkippedEvent {
+    outerIxIndex: number;
+    innerIxIndex: number;
+    /** The kind byte, when the data was tagged well enough to read one. */
+    eventKind: number | null;
+    reason: string;
+    /** True for a kind we have never seen; false for a decoder/layout error. */
+    unknownKind: boolean;
+}
+
+export interface ExtractionResult {
+    events: ExtractedEvent[];
+    /** Instructions that carried the event tag but did not decode. */
+    skipped: SkippedEvent[];
+}
+
 /**
  * Extracts all Subscriptions events from a `getTransaction` response with
  * `jsonParsed` encoding. Failed transactions never emit events and yield [].
+ *
+ * Decode failures are returned rather than thrown. This is the ingestion
+ * boundary, and the caller advances a cursor across it: a throw here would
+ * stop the cursor on the offending signature and re-fail on it forever, taking
+ * projections, billing and webhooks down with it. The layout tripwire lives in
+ * `decodeEventData`, which the fixture tests call directly, so an upstream
+ * wire-format change still fails CI loudly; in production it degrades to a
+ * reported gap instead of a halt.
  */
 export function extractEventsFromTransaction(
     tx: ParsedTransactionLike,
     programAddress: string,
-): ExtractedEvent[] {
-    if (!tx.meta || tx.meta.err != null) return [];
+): ExtractionResult {
+    if (!tx.meta || tx.meta.err != null) return { events: [], skipped: [] };
     const groups = tx.meta.innerInstructions ?? [];
-    const results: ExtractedEvent[] = [];
+    const events: ExtractedEvent[] = [];
+    const skipped: SkippedEvent[] = [];
     for (const group of groups) {
         group.instructions.forEach((ix, innerIxIndex) => {
             if (ix.programId !== programAddress || typeof ix.data !== 'string') return;
             const bytes = getBase58Encoder().encode(ix.data) as Uint8Array;
-            const event = decodeEventData(bytes);
+            let event: KairosChainEvent | undefined;
+            try {
+                event = decodeEventData(bytes);
+            } catch (error) {
+                const unknownKind = error instanceof UnknownEventKindError;
+                skipped.push({
+                    outerIxIndex: group.index,
+                    innerIxIndex,
+                    eventKind: unknownKind
+                        ? error.eventKind
+                        : isEventInstructionData(bytes)
+                          ? (bytes[PREFIX_LEN - 1] ?? null)
+                          : null,
+                    reason: error instanceof Error ? error.message : String(error),
+                    unknownKind,
+                });
+                return;
+            }
             if (event) {
-                results.push({ outerIxIndex: group.index, innerIxIndex, event });
+                events.push({ outerIxIndex: group.index, innerIxIndex, event });
             }
         });
     }
-    return results;
+    return { events, skipped };
 }

@@ -13,6 +13,14 @@ export function error(status: number, message: string): NextResponse {
     return json({ error: message }, { status });
 }
 
+/** 429 with the Retry-After the client should honour. */
+export function tooManyRequests(retryAfterSeconds: number): NextResponse {
+    return json(
+        { error: 'too many requests' },
+        { status: 429, headers: { 'retry-after': String(retryAfterSeconds) } },
+    );
+}
+
 /** Wraps a handler so thrown errors become clean 500s instead of HTML pages. */
 export function handler(fn: (req: Request) => Promise<NextResponse>) {
     return async (req: Request): Promise<NextResponse> => {

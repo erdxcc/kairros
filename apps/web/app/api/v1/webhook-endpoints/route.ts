@@ -27,6 +27,13 @@ export const GET = handler(async (req) => {
     return json({ endpoints: rows });
 });
 
+/**
+ * Per-merchant ceiling. Every active endpoint multiplies the delivery rows and
+ * the outbound requests each event produces, so this is a shared-resource
+ * limit, not a product one.
+ */
+const MAX_ACTIVE_ENDPOINTS = 20;
+
 /** POST { url } -> creates an endpoint; the signing secret is returned ONCE. */
 export const POST = handler(async (req) => {
     const gate = await requireMerchant(req);
@@ -36,15 +43,31 @@ export const POST = handler(async (req) => {
     if (!body.url || typeof body.url !== 'string') return error(400, 'url is required');
     // Guard against SSRF: https only, no private/loopback/link-local targets.
     // Re-checked at delivery time in the worker, since DNS can change meanwhile.
+    let parsed: URL;
     try {
-        await assertSafeWebhookUrl(body.url, { allowPrivate: webhookAllowPrivate() });
+        parsed = await assertSafeWebhookUrl(body.url, { allowPrivate: webhookAllowPrivate() });
     } catch (err) {
         if (err instanceof UnsafeWebhookUrlError) return error(400, err.message);
         throw err;
     }
 
-    const secret = `whsec_${randomBytes(24).toString('hex')}`;
     const db = await getDb();
+    const active = await db
+        .select({ id: dbSchema.webhookEndpoints.id, url: dbSchema.webhookEndpoints.url })
+        .from(dbSchema.webhookEndpoints)
+        .where(
+            and(eq(dbSchema.webhookEndpoints.merchant, merchant), eq(dbSchema.webhookEndpoints.active, true)),
+        );
+    if (active.length >= MAX_ACTIVE_ENDPOINTS) {
+        return error(409, `at most ${MAX_ACTIVE_ENDPOINTS} active endpoints per merchant`);
+    }
+    // Registering the same URL twice doubles every delivery to it, which reads
+    // as a retry storm on the receiving end.
+    if (active.some((e) => e.url === parsed.href || e.url === body.url)) {
+        return error(409, 'this url is already registered');
+    }
+
+    const secret = `whsec_${randomBytes(24).toString('hex')}`;
     const inserted = await db
         .insert(dbSchema.webhookEndpoints)
         .values({ merchant, url: body.url, secret })
@@ -59,8 +82,10 @@ export const DELETE = handler(async (req) => {
     if (!gate.ok) return error(gate.status, gate.error);
     const merchant = gate.address;
     const idParam = new URL(req.url).searchParams.get('id');
-    const id = Number.parseInt(idParam ?? '', 10);
-    if (!Number.isFinite(id)) return error(400, 'id is required');
+    // Strict: `parseInt` would happily read "12abc" as 12 and delete endpoint 12.
+    if (!idParam || !/^\d+$/.test(idParam)) return error(400, 'id is required');
+    const id = Number(idParam);
+    if (!Number.isSafeInteger(id)) return error(400, 'id is required');
     const db = await getDb();
     const updated = await db
         .update(dbSchema.webhookEndpoints)

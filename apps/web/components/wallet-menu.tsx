@@ -81,7 +81,9 @@ export function WalletMenu() {
                         <button
                             type="button"
                             onClick={() => {
-                                signOut();
+                                // Fire and forget: the menu closes now, and
+                                // signOut clears local state either way.
+                                void signOut();
                                 setOpen(false);
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-faint text-sm transition-colors hover:bg-surface-2 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"

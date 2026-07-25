@@ -19,6 +19,19 @@ export function errorChain(error: unknown): string {
 }
 
 /**
+ * Recognises an HTTP 429 in an error chain without matching "429" wherever it
+ * happens to appear. Base58 signatures and addresses are full of digits, and a
+ * bare substring test turns any of them into a spurious rate-limit retry.
+ */
+function isRateLimitError(message: string): boolean {
+    if (/too many requests/i.test(message)) return true;
+    // "429" only when it reads as a status: "status 429", "HTTP 429", "429:".
+    return /(?:^|[^0-9])(?:status(?:\s*code)?|code|http)?[\s:=]*\b429\b(?![0-9])/i.test(message)
+        ? /(?:status|code|http|error|rate)/i.test(message)
+        : false;
+}
+
+/**
  * Retries an async action when the RPC rate-limits us (HTTP 429), with
  * exponential backoff. Anything else is rethrown immediately.
  */
@@ -28,7 +41,7 @@ export async function withRetry<T>(action: () => Promise<T>, attempts = 4): Prom
             return await action();
         } catch (error) {
             const message = errorChain(error);
-            const rateLimited = message.includes('429') || message.includes('Too Many Requests');
+            const rateLimited = isRateLimitError(message);
             if (!rateLimited || attempt >= attempts) throw error;
             const delay = 2000 * 2 ** (attempt - 1);
             console.warn(`(rate limited by RPC, retrying in ${delay / 1000}s...)`);

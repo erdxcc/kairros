@@ -9,7 +9,14 @@
  *     a signature is fully ingested (idempotent inserts make replays safe).
  *   - Failed transactions emit no events but still advance the cursor.
  */
-import { type KairosDb, dbSchema, extractEventsFromTransaction, sleep, withRetry } from '@kairos/core';
+import {
+    type KairosDb,
+    dbSchema,
+    extractEventsFromTransaction,
+    runLeasedLoop,
+    sleep,
+    withRetry,
+} from '@kairos/core';
 import { type Signature, address, type createSolanaRpc } from '@solana/kit';
 import { SUBSCRIPTIONS_PROGRAM_ADDRESS } from '@solana/subscriptions';
 import { eq, sql } from 'drizzle-orm';
@@ -98,10 +105,13 @@ async function collectNewSignatures(
 }
 
 /** One poll cycle. Returns counts for logging/monitoring. */
-export async function pollOnce(opts: IndexerOptions): Promise<{ signatures: number; events: number }> {
+export async function pollOnce(
+    opts: IndexerOptions,
+): Promise<{ signatures: number; events: number; skipped: number }> {
     const cursor = await loadCursor(opts.db);
     const entries = await collectNewSignatures(opts, cursor);
     let eventCount = 0;
+    let skippedCount = 0;
 
     for (const entry of entries) {
         if (entry.err === null) {
@@ -114,8 +124,18 @@ export async function pollOnce(opts: IndexerOptions): Promise<{ signatures: numb
                     .send(),
             );
             if (tx) {
-                const extracted = extractEventsFromTransaction(tx, SUBSCRIPTIONS_PROGRAM_ADDRESS);
-                for (const { outerIxIndex, innerIxIndex, event } of extracted) {
+                const { events, skipped } = extractEventsFromTransaction(tx, SUBSCRIPTIONS_PROGRAM_ADDRESS);
+                // Undecodable events are a gap, not a reason to stop: the
+                // cursor still advances below. Loud, per occurrence, because a
+                // silent gap in a billing ledger is worse than a noisy log.
+                for (const skip of skipped) {
+                    skippedCount++;
+                    console.error(
+                        `[indexer] SKIPPED ${skip.unknownKind ? 'unknown event kind' : 'undecodable event'}` +
+                            ` ${skip.eventKind ?? '?'} at ${entry.signature}[${skip.outerIxIndex}.${skip.innerIxIndex}]: ${skip.reason}`,
+                    );
+                }
+                for (const { outerIxIndex, innerIxIndex, event } of events) {
                     const fresh = await ingestEvent(
                         opts.db,
                         opts.rpc,
@@ -137,27 +157,32 @@ export async function pollOnce(opts: IndexerOptions): Promise<{ signatures: numb
         await saveCursor(opts.db, entry.signature);
     }
 
-    return { signatures: entries.length, events: eventCount };
+    return { signatures: entries.length, events: eventCount, skipped: skippedCount };
 }
 
 export interface RunOptions extends IndexerOptions {
     pollIntervalMs: number;
+    leaseTtlMs: number;
     stopSignal: { stopped: boolean };
 }
 
-/** Runs the poll loop until `stopSignal.stopped` is set. */
+/** Runs the poll loop, while this process holds the indexer lease. */
 export async function runIndexer(opts: RunOptions): Promise<void> {
     console.log(`[indexer] watching program ${PROGRAM} (poll every ${opts.pollIntervalMs / 1000}s)`);
-    while (!opts.stopSignal.stopped) {
-        try {
-            const { signatures, events } = await pollOnce(opts);
+    await runLeasedLoop({
+        db: opts.db,
+        name: 'indexer',
+        label: 'indexer',
+        ttlMs: opts.leaseTtlMs,
+        intervalMs: opts.pollIntervalMs,
+        stopSignal: opts.stopSignal,
+        tick: async () => {
+            const { signatures, events, skipped } = await pollOnce(opts);
             if (signatures > 0) {
-                console.log(`[indexer] processed ${signatures} signatures, ${events} new events`);
+                console.log(
+                    `[indexer] processed ${signatures} signatures, ${events} new events${skipped > 0 ? `, ${skipped} SKIPPED (see errors above)` : ''}`,
+                );
             }
-        } catch (error) {
-            console.error('[indexer] poll failed; will retry next cycle:', error);
-        }
-        await sleep(opts.pollIntervalMs);
-    }
-    console.log('[indexer] stopped');
+        },
+    });
 }

@@ -88,7 +88,15 @@ idempotently, so you can kill the worker at any point and restart it. It picks u
 from the exact signature it stopped at, with no gaps and no duplicates. The event
 decoders are locked by golden fixtures recorded from real devnet transactions
 (`packages/core/test/fixtures`), so an upstream wire-format change fails CI
-instead of quietly corrupting data.
+instead of quietly corrupting data. At runtime an event that will not decode is
+reported and skipped rather than thrown: the cursor has to keep moving, because
+stopping on one transaction would stop billing and webhooks along with indexing.
+
+Each of the worker's four loops (indexer, scheduler, dispatcher, reconciler)
+runs only while it holds a lease in `worker_leases`, so a second worker process
+is a warm standby rather than a source of duplicate charges and duplicate
+webhook deliveries. Run as many as you like for availability; exactly one is
+doing each job at a time.
 
 ## Running the API and dashboard
 
@@ -147,8 +155,15 @@ points at localhost or mainnet data labelled "devnet".
 | `apps/web` | `NEXT_PUBLIC_SOLANA_CLUSTER` (`devnet` or `mainnet-beta`) |
 
 `NEXT_PUBLIC_NETWORK` is optional and drives the landing badge; it defaults to
-`devnet`. At runtime the dashboard also needs `AUTH_SECRET` and `DATABASE_URL`,
-and refuses to issue sessions without a real secret. See `.env.example`.
+`devnet`. At runtime the dashboard also needs `AUTH_SECRET`, `DATABASE_URL` and
+`AUTH_DOMAIN`, and fails naming the variable rather than guessing: it refuses to
+issue sessions without a real secret, requires a `postgres://` database (PGlite
+is single-process and cannot serve the Next.js runtime), and will not take the
+sign-in domain from the request's `Host` header, which the caller controls. See
+`.env.example`.
+
+Both apps send `Content-Security-Policy`, `X-Frame-Options: DENY`, HSTS and
+`Referrer-Policy`; the dashboard additionally marks `/api/*` `no-store`.
 
 ## Checks
 

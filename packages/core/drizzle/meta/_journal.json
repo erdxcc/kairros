@@ -15,6 +15,13 @@
             "when": 1781307067979,
             "tag": "0001_previous_wolfsbane",
             "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "7",
+            "when": 1784937600000,
+            "tag": "0002_hardening",
+            "breakpoints": true
         }
     ]
 }

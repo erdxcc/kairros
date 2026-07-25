@@ -48,6 +48,17 @@ export type ChargeFailureKind =
     | 'receiver_ata_missing' // merchant setup problem; actionable
     | 'unknown';
 
+/** SPL Token and Token-2022 program ids, as they appear in log frames. */
+const TOKEN_PROGRAM_IDS = [
+    'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+];
+
+/** True when the failure chain mentions a token program at all. */
+function mentionsTokenProgram(message: string): boolean {
+    return TOKEN_PROGRAM_IDS.some((id) => message.includes(id));
+}
+
 /**
  * Classifies a failed `transferSubscription` from the error message chain.
  * Program-domain errors carry their custom code; SPL Token's insufficient
@@ -67,7 +78,14 @@ export function classifyChargeError(message: string): ChargeFailureKind {
     if (code !== undefined) {
         switch (code) {
             case 1:
-                return 'insufficient_funds';
+                // Error 1 is only "insufficient funds" if a token program
+                // raised it. Every program numbers its own errors from zero,
+                // so attributing a bare 1 to SPL Token would mislabel an
+                // unrelated failure as a dunning case and put a subscriber
+                // into a retry ladder for something retrying cannot fix.
+                return mentionsTokenProgram(message) || /insufficient funds/i.test(message)
+                    ? 'insufficient_funds'
+                    : 'unknown';
             case 400:
                 return 'already_charged';
             case 401:

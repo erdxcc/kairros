@@ -18,6 +18,7 @@ import {
     classifyChargeError,
     dbSchema,
     errorChain,
+    runLeasedLoop,
     sleep,
     subscriptionDue,
     withRetry,
@@ -100,6 +101,31 @@ async function alreadyFailedThisPeriod(
         )
         .limit(1);
     return rows.length > 0;
+}
+
+/**
+ * Did the charge we just failed to confirm actually land?
+ *
+ * Re-reads the delegation and asks whether the period we were charging has
+ * been paid. The program advances `currentPeriodStartTs` on a renewal and
+ * raises `amountPulledInPeriod` on a first charge, so either moving past what
+ * we set out to charge means the transfer executed. A short pause first,
+ * because the account we are about to read is one the transaction just wrote.
+ */
+async function chargeLanded(
+    opts: SchedulerOptions,
+    candidate: Candidate,
+    periodStart: bigint,
+): Promise<boolean> {
+    await sleep(2000);
+    const onChain = await withRetry(() =>
+        fetchMaybeSubscriptionDelegation(opts.rpc, address(candidate.subscriptionPda)),
+    );
+    // Gone entirely: revoked rather than charged, so this was a real failure.
+    if (!onChain.exists) return false;
+    const sub = onChain.data;
+    if (sub.currentPeriodStartTs > periodStart) return true; // rolled into the next period
+    return sub.currentPeriodStartTs === periodStart && sub.amountPulledInPeriod > 0n;
 }
 
 async function recordFailure(
@@ -230,6 +256,24 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
             if (kind === 'already_charged' || kind === 'not_due') {
                 continue; // benign race with another puller or clock skew
             }
+            // An unclassified error is the ambiguous one: a transaction whose
+            // confirmation timed out may still have landed. Recording a
+            // failure for a charge that actually succeeded would emit a false
+            // `charge.failed` to the merchant AND block the retry for this
+            // period, so ask the chain before believing the exception. Errors
+            // we *did* classify came from preflight, where nothing was ever
+            // submitted, and need no second look.
+            if (kind === 'unknown' && periodStart !== 0n) {
+                const landed = await chargeLanded(opts, candidate, periodStart).catch(() => false);
+                if (landed) {
+                    console.warn(
+                        `[scheduler] charge on ${candidate.subscriptionPda.slice(0, 12)}… reported an error but landed on-chain; not recording a failure`,
+                    );
+                    charged++;
+                    await sleep(500);
+                    continue;
+                }
+            }
             console.warn(`[scheduler] charge failed (${kind}) on ${candidate.subscriptionPda.slice(0, 12)}…`);
             await recordFailure(opts.db, candidate, periodStart, periodEnd, kind, message).catch(
                 (recordError) => console.error('[scheduler] failed to record failure:', recordError),
@@ -243,22 +287,25 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
 
 export interface SchedulerRunOptions extends SchedulerOptions {
     pollIntervalMs: number;
+    leaseTtlMs: number;
     stopSignal: { stopped: boolean };
 }
 
 export async function runScheduler(opts: SchedulerRunOptions): Promise<void> {
     const pullerAddress = (await opts.puller.getSigner()).address;
     console.log(`[scheduler] billing key ${pullerAddress} (cycle every ${opts.pollIntervalMs / 1000}s)`);
-    while (!opts.stopSignal.stopped) {
-        try {
+    await runLeasedLoop({
+        db: opts.db,
+        name: 'scheduler',
+        label: 'scheduler',
+        ttlMs: opts.leaseTtlMs,
+        intervalMs: opts.pollIntervalMs,
+        stopSignal: opts.stopSignal,
+        tick: async () => {
             const { charged, failed } = await scheduleOnce(opts);
             if (charged + failed > 0) {
                 console.log(`[scheduler] cycle done: ${charged} charged, ${failed} failed`);
             }
-        } catch (error) {
-            console.error('[scheduler] cycle error:', error);
-        }
-        await sleep(opts.pollIntervalMs);
-    }
-    console.log('[scheduler] stopped');
+        },
+    });
 }

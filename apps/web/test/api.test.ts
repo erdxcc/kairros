@@ -8,7 +8,14 @@
 import { type KairosDb, buildSignInMessage, createDb, dbSchema } from '@kairos/core';
 import { generateKeyPairSigner, getBase58Decoder } from '@solana/kit';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { authenticate, issueNonceToken, issueSession, verifySignIn } from '../lib/auth.js';
+import {
+    authenticate,
+    issueNonceToken,
+    issueSession,
+    revokeSession,
+    signInDomain,
+    verifySignIn,
+} from '../lib/auth.js';
 import {
     getMetrics,
     getMySubscription,
@@ -154,7 +161,76 @@ describe('SIWS auth', () => {
         if (!sigBytes) throw new Error('sign failed');
         const signature = getBase58Decoder().decode(sigBytes);
 
-        expect(await verifySignIn({ address: signer.address, message, signature, nonceToken })).toBe(true);
+        expect(await verifySignIn({ address: signer.address, message, signature, nonceToken }, db)).toBe(
+            true,
+        );
+    });
+
+    // The nonce is what stops a captured (message, signature) pair from being
+    // presented again inside its five minute lifetime.
+    it('burns the nonce so the same signature cannot be replayed', async () => {
+        const signer = await generateKeyPairSigner();
+        const message = buildSignInMessage({
+            domain: 'localhost',
+            address: signer.address,
+            nonce: 'once',
+            issuedAt: new Date().toISOString(),
+        });
+        const nonceToken = await issueNonceToken(signer.address, message);
+        const signed = await signer.signMessages([
+            { content: new TextEncoder().encode(message), signatures: {} },
+        ]);
+        const signature = getBase58Decoder().decode(signed[0]?.[signer.address] as Uint8Array);
+        const input = { address: signer.address, message, signature, nonceToken };
+
+        expect(await verifySignIn(input, db)).toBe(true);
+        expect(await verifySignIn(input, db)).toBe(false); // replay
+    });
+
+    // A failed attempt must not spend someone else's in-flight nonce.
+    it('does not burn the nonce when the signature is wrong', async () => {
+        const signer = await generateKeyPairSigner();
+        const message = buildSignInMessage({
+            domain: 'localhost',
+            address: signer.address,
+            nonce: 'keepme',
+            issuedAt: new Date().toISOString(),
+        });
+        const nonceToken = await issueNonceToken(signer.address, message);
+        const signed = await signer.signMessages([
+            { content: new TextEncoder().encode(message), signatures: {} },
+        ]);
+        const signature = getBase58Decoder().decode(signed[0]?.[signer.address] as Uint8Array);
+
+        const bogus = getBase58Decoder().decode(new Uint8Array(64));
+        expect(
+            await verifySignIn({ address: signer.address, message, signature: bogus, nonceToken }, db),
+        ).toBe(false);
+        // The real one still works afterwards.
+        expect(await verifySignIn({ address: signer.address, message, signature, nonceToken }, db)).toBe(
+            true,
+        );
+    });
+
+    // Both tokens are HS256 under one secret, so the type claim is the only
+    // thing keeping them apart.
+    it('will not accept a nonce token as a session', async () => {
+        const signer = await generateKeyPairSigner();
+        const nonceToken = await issueNonceToken(signer.address, 'anything');
+        const req = new Request('http://x/api/v1/plans', {
+            headers: { authorization: `Bearer ${nonceToken}` },
+        });
+        expect(await authenticate(req, db)).toBeNull();
+    });
+
+    it('revokes a session so the token stops working', async () => {
+        const token = await issueSession(merchantA);
+        const req = () =>
+            new Request('http://x/api/v1/plans', { headers: { authorization: `Bearer ${token}` } });
+
+        expect(await authenticate(req(), db)).toBe(merchantA);
+        expect(await revokeSession(req(), db)).toBe(true);
+        expect(await authenticate(req(), db)).toBeNull();
     });
 
     it('rejects a tampered message, wrong address, and missing nonce binding', async () => {
@@ -173,21 +249,52 @@ describe('SIWS auth', () => {
 
         // tampered message (signature no longer matches, and nonce hash differs)
         expect(
-            await verifySignIn({ address: signer.address, message: `${message} `, signature, nonceToken }),
+            await verifySignIn(
+                { address: signer.address, message: `${message} `, signature, nonceToken },
+                db,
+            ),
         ).toBe(false);
         // a different signer's address with this signature
         const other = await generateKeyPairSigner();
-        expect(await verifySignIn({ address: other.address, message, signature, nonceToken })).toBe(false);
+        expect(await verifySignIn({ address: other.address, message, signature, nonceToken }, db)).toBe(
+            false,
+        );
     });
 
     it('round-trips a session token through authenticate()', async () => {
         const token = await issueSession(merchantA);
         const req = new Request('http://x/api/v1/plans', { headers: { authorization: `Bearer ${token}` } });
-        expect(await authenticate(req)).toBe(merchantA);
-        expect(await authenticate(new Request('http://x'))).toBeNull();
+        expect(await authenticate(req, db)).toBe(merchantA);
+        expect(await authenticate(new Request('http://x'), db)).toBeNull();
         expect(
-            await authenticate(new Request('http://x', { headers: { authorization: 'Bearer garbage' } })),
+            await authenticate(new Request('http://x', { headers: { authorization: 'Bearer garbage' } }), db),
         ).toBeNull();
+    });
+});
+
+// The domain line is the only thing in the signed message that tells a wallet
+// owner who is asking, so the server has to be the one that decides it.
+describe('the sign-in domain is not taken from the request', () => {
+    const req = new Request('http://attacker.example/api/v1/auth/nonce');
+
+    it('uses AUTH_DOMAIN when configured, whatever the Host says', () => {
+        vi.stubEnv('AUTH_DOMAIN', 'app.kairos.example');
+        expect(signInDomain(req)).toBe('app.kairos.example');
+        vi.unstubAllEnvs();
+    });
+
+    it('refuses to fall back to the request host in production', () => {
+        vi.stubEnv('AUTH_DOMAIN', '');
+        vi.stubEnv('NODE_ENV', 'production');
+        expect(() => signInDomain(req)).toThrow(/AUTH_DOMAIN/);
+        vi.unstubAllEnvs();
+    });
+
+    it('falls back to the request host in local development', () => {
+        vi.stubEnv('AUTH_DOMAIN', '');
+        vi.stubEnv('NODE_ENV', 'development');
+        expect(signInDomain(req)).toBe('attacker.example');
+        vi.unstubAllEnvs();
     });
 });
 

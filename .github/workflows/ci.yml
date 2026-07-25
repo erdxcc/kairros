@@ -30,6 +30,14 @@ jobs:
             - name: Test
               run: pnpm test
 
+            - name: Audit dependencies
+              # Advisories in the dependency tree are a supply-chain finding
+              # like any other; this surfaces them on every PR rather than
+              # whenever somebody remembers to look. Moderate and below are
+              # reported without failing the build, so a new advisory in a dev
+              # dependency does not block unrelated work.
+              run: pnpm audit --audit-level high
+
             - name: Build
               # The public origins and the cluster are required in a production
               # build (a missing one fails the build instead of shipping a link

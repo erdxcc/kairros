@@ -5,7 +5,14 @@
  * applied inside the same DB transaction that inserted its `chain_events`
  * row, so a crash can never leave a half-applied event.
  */
-import { type KairosChainEvent, type KairosDb, dbSchema } from '@kairos/core';
+import {
+    type KairosChainEvent,
+    type KairosDb,
+    dbSchema,
+    planRowFromAccount,
+    unresolvedPlanRow,
+    withRetry,
+} from '@kairos/core';
 import { type Address, address, type createSolanaRpc } from '@solana/kit';
 import { fetchMaybePlan, findSubscriptionDelegationPda } from '@solana/subscriptions';
 import { eq, sql } from 'drizzle-orm';
@@ -18,57 +25,44 @@ export interface EventContext {
     blockTime: bigint | null;
 }
 
-/** Plan rows are filled lazily: first event referencing a plan triggers an RPC fetch. */
+/**
+ * Plan rows are filled lazily: the first event referencing a plan triggers an
+ * RPC fetch.
+ *
+ * A row that is still `unresolved` is re-fetched rather than trusted, because
+ * that status means "we could not read the account last time", not "this is
+ * what the plan says". Everything else short-circuits: real terms are the
+ * reconciler's job to keep fresh, not this hot path's.
+ */
 export async function ensurePlanRow(db: KairosDb, rpc: Rpc, planPda: Address): Promise<void> {
     const existing = await db
-        .select({ planPda: dbSchema.plans.planPda })
+        .select({ status: dbSchema.plans.status })
         .from(dbSchema.plans)
         .where(eq(dbSchema.plans.planPda, planPda))
         .limit(1);
-    if (existing.length > 0) return;
+    if (existing.length > 0 && existing[0]?.status !== 'unresolved') return;
 
-    const account = await fetchMaybePlan(rpc, planPda);
+    const account = await withRetry(() => fetchMaybePlan(rpc, planPda));
     if (!account.exists) {
-        // Plan was deleted (possible after expiry): keep a tombstone so joins still work.
-        await db
-            .insert(dbSchema.plans)
-            .values({
-                planPda,
-                owner: '',
-                planId: '0',
-                mint: '',
-                amount: '0',
-                periodHours: 0n,
-                status: 'closed',
-                endTs: 0n,
-                destinations: [],
-                pullers: [],
-                metadataUri: '',
-                createdAtChain: 0n,
-            })
-            .onConflictDoNothing();
+        // The account did not come back. It may genuinely be gone (plans can be
+        // closed after expiry) or the node may simply be behind the transaction
+        // we are indexing. We cannot tell the two apart from here, so record a
+        // placeholder the reconciler will revisit instead of a verdict.
+        await db.insert(dbSchema.plans).values(unresolvedPlanRow(planPda)).onConflictDoNothing();
         return;
     }
 
-    const plan = account.data;
-    const data = plan.data;
+    const row = planRowFromAccount(planPda, account.data);
     await db
         .insert(dbSchema.plans)
-        .values({
-            planPda,
-            owner: plan.owner,
-            planId: data.planId.toString(),
-            mint: data.mint,
-            amount: data.terms.amount.toString(),
-            periodHours: data.terms.periodHours,
-            status: plan.status === 1 ? 'active' : 'sunset',
-            endTs: data.endTs,
-            destinations: data.destinations.filter((d) => d !== '11111111111111111111111111111111'),
-            pullers: data.pullers.filter((p) => p !== '11111111111111111111111111111111'),
-            metadataUri: data.metadataUri,
-            createdAtChain: data.terms.createdAt,
-        })
-        .onConflictDoNothing();
+        .values(row)
+        .onConflictDoUpdate({
+            target: dbSchema.plans.planPda,
+            // Only ever upgrades a placeholder into the real thing; a resolved
+            // row is left to the reconciler so two writers cannot fight.
+            set: { ...row, updatedAt: sql`now()` },
+            setWhere: eq(dbSchema.plans.status, 'unresolved'),
+        });
 }
 
 function jsonPayload(event: KairosChainEvent): Record<string, string> {

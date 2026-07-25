@@ -61,15 +61,31 @@ async function main() {
         process.exit(1);
     }
 
-    // Negative: tampered signature must be rejected.
+    // Negative: replaying the same nonce must fail. The nonce is single-use,
+    // so the exact payload that just worked has to stop working.
+    const replay = await fetch(`${BASE}/api/v1/auth/verify`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ address: merchant.address, message, signature, nonceToken }),
+    });
+    check('POST /auth/verify replaying a used nonce -> 401', replay.status === 401, replay.status);
+
+    // Negative: tampered signature must be rejected. Needs its own nonce now
+    // that the first one is spent, or this would pass for the wrong reason.
+    const freshNonceRes = await fetch(`${BASE}/api/v1/auth/nonce`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ address: merchant.address }),
+    });
+    const fresh = (await freshNonceRes.json()) as { message: string; nonceToken: string };
     const badVerify = await fetch(`${BASE}/api/v1/auth/verify`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
             address: merchant.address,
-            message,
+            message: fresh.message,
             signature: signature.slice(2),
-            nonceToken,
+            nonceToken: fresh.nonceToken,
         }),
     });
     check('POST /auth/verify with bad signature -> 401', badVerify.status === 401, badVerify.status);
@@ -117,6 +133,13 @@ async function main() {
         headers: auth,
     });
     check('DELETE /webhook-endpoints?id -> ok', deleted.ok, deleted.status);
+
+    // Signing out has to end the session on the server, not just in a browser:
+    // the same token must stop working immediately afterwards.
+    const loggedOut = await fetch(`${BASE}/api/v1/auth/logout`, { method: 'POST', headers: auth });
+    check('POST /auth/logout -> ok', loggedOut.ok, loggedOut.status);
+    const afterLogout = await fetch(`${BASE}/api/v1/plans`, { headers: auth });
+    check('GET /plans with a revoked token -> 401', afterLogout.status === 401, afterLogout.status);
 
     console.log(`\n${failures === 0 ? '✔ all API checks passed' : `✗ ${failures} check(s) failed`}`);
     process.exit(failures === 0 ? 0 : 1);
