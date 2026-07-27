@@ -6,7 +6,31 @@
 /** Which cluster this deployment talks about. Drives the status badges. */
 export type Network = 'devnet' | 'mainnet';
 
-const network: Network = process.env.NEXT_PUBLIC_NETWORK === 'mainnet' ? 'mainnet' : 'devnet';
+/**
+ * Resolves the cluster this deployment is about.
+ *
+ * `mainnet-beta` is accepted alongside `mainnet` because that is what the other
+ * two apps call it (SOLANA_CLUSTER and NEXT_PUBLIC_SOLANA_CLUSTER both take
+ * `mainnet-beta`), and setting the same value here used to fall through to
+ * devnet. Anything unrecognised now stops a production build rather than
+ * quietly picking devnet: the value shows up in the network badges and, worse,
+ * inside the copy-pasteable integration snippet, so being wrong here hands
+ * visitors code pointed at the wrong chain while the site itself looks fine.
+ */
+function resolveNetwork(value: string | undefined): Network {
+    if (value === 'mainnet' || value === 'mainnet-beta') return 'mainnet';
+    if (value === 'devnet') return 'devnet';
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+            `NEXT_PUBLIC_NETWORK must be mainnet, mainnet-beta or devnet for a production build of the landing site (got ${value ?? 'nothing'})`,
+        );
+    }
+    return 'devnet';
+}
+
+// Next inlines NEXT_PUBLIC_* by matching the literal `process.env.NAME` text,
+// so it has to be read here rather than through a computed lookup.
+const network: Network = resolveNetwork(process.env.NEXT_PUBLIC_NETWORK);
 
 // Next inlines NEXT_PUBLIC_* by matching the literal `process.env.NAME` text,
 // so these have to be read here rather than through a computed lookup.

@@ -222,7 +222,10 @@ export const trust = {
 
 export const cta = {
     heading: 'Start billing on Solana today.',
-    lead: 'Open-source, self-hostable, live on devnet.',
+    // Reads the cluster rather than naming one: this line claimed devnet on
+    // every deployment, including a mainnet one, and nothing about it moved
+    // when the badges did.
+    lead: `Open-source, self-hostable, live on ${site.network}.`,
     primary: { label: 'Start free', href: site.dashboardUrl },
     secondary: { label: 'View on GitHub', href: site.repoUrl },
 } as const;
