@@ -60,7 +60,13 @@ async function main() {
             pollIntervalMs: indexerPoll,
             leaseTtlMs: intEnv('INDEXER_LEASE_TTL_MS', leaseTtl(indexerPoll)),
             backfillLimit: intEnv('INDEXER_BACKFILL_LIMIT', 100),
-            maxPagesPerPoll: intEnv('INDEXER_MAX_PAGES', 3),
+            // Paging is cheap metadata; this only sets how deep a backlog the
+            // indexer can still locate the bottom of. It halts rather than skip
+            // past one it cannot cover, so headroom here is what keeps a long
+            // outage self-healing instead of needing an operator.
+            maxPagesPerPoll: intEnv('INDEXER_MAX_PAGES', 20),
+            // The per-cycle work bound. 100 x 400ms ~ 40s, inside the 60s lease.
+            maxSignaturesPerCycle: intEnv('INDEXER_MAX_SIGNATURES_PER_CYCLE', 100),
             txDelayMs: intEnv('INDEXER_TX_DELAY_MS', 400),
         }),
         runScheduler({

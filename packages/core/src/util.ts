@@ -31,20 +31,72 @@ function isRateLimitError(message: string): boolean {
         : false;
 }
 
+/** Transport failures that say "the request never got a verdict", not "no". */
+const TRANSPORT_ERROR_PATTERNS = [
+    /ECONNRESET/,
+    /ECONNREFUSED/,
+    /ETIMEDOUT/,
+    /ENOTFOUND/,
+    /EAI_AGAIN/,
+    /EPIPE/,
+    /socket hang up/i,
+    /network error/i,
+    /fetch failed/i,
+    /operation was aborted/i,
+    /\btimed? ?out\b/i,
+];
+
 /**
- * Retries an async action when the RPC rate-limits us (HTTP 429), with
- * exponential backoff. Anything else is rethrown immediately.
+ * Recognises a failure where the request never completed, as opposed to one
+ * where the server answered and the answer was "no". Same care as the 429
+ * matcher about bare numbers: base58 signatures are full of digits, so a
+ * gateway status only counts when the surrounding text reads like a status.
  */
-export async function withRetry<T>(action: () => Promise<T>, attempts = 4): Promise<T> {
+function isTransportError(message: string): boolean {
+    if (TRANSPORT_ERROR_PATTERNS.some((pattern) => pattern.test(message))) return true;
+    return /(?:^|[^0-9])(?:status(?:\s*code)?|code|http)?[\s:=]*\b(?:502|503|504)\b(?![0-9])/i.test(message)
+        ? /(?:status|code|http|error|gateway|unavailable|timeout)/i.test(message)
+        : false;
+}
+
+export interface RetryOptions {
+    /** Total attempts, including the first. */
+    attempts?: number;
+    /**
+     * Also retry transport failures (dropped sockets, DNS blips, 502/503/504),
+     * not just HTTP 429.
+     *
+     * Only correct for idempotent work. A retried read costs one extra RPC
+     * call; a retried *write* can put the same transaction on the chain twice,
+     * so the money path leaves this off and decides for itself what an
+     * unanswered send means.
+     */
+    retryTransport?: boolean;
+}
+
+/**
+ * Retries an async action with exponential backoff.
+ *
+ * HTTP 429 is always retried: a rate limit is explicitly "ask again". Transport
+ * failures are retried only under `retryTransport`, because "we never heard
+ * back" is safe to repeat for a read and unsafe to repeat for a send. Anything
+ * else is rethrown at once — a server that returned a verdict will return the
+ * same verdict next time.
+ */
+export async function withRetry<T>(action: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
+    const attempts = options.attempts ?? 4;
     for (let attempt = 1; ; attempt++) {
         try {
             return await action();
         } catch (error) {
             const message = errorChain(error);
             const rateLimited = isRateLimitError(message);
-            if (!rateLimited || attempt >= attempts) throw error;
+            const transport = options.retryTransport === true && isTransportError(message);
+            if ((!rateLimited && !transport) || attempt >= attempts) throw error;
             const delay = 2000 * 2 ** (attempt - 1);
-            console.warn(`(rate limited by RPC, retrying in ${delay / 1000}s...)`);
+            console.warn(
+                `(${rateLimited ? 'rate limited by RPC' : 'RPC transport failure'}, retrying in ${delay / 1000}s...)`,
+            );
             await sleep(delay);
         }
     }

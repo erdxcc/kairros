@@ -62,18 +62,24 @@ export const POST = handler(async (req) => {
         return error(409, `at most ${MAX_ACTIVE_ENDPOINTS} active endpoints per merchant`);
     }
     // Registering the same URL twice doubles every delivery to it, which reads
-    // as a retry storm on the receiving end.
+    // as a retry storm on the receiving end. Both forms are compared because
+    // rows written before normalization hold the raw string.
     if (active.some((e) => e.url === parsed.href || e.url === body.url)) {
         return error(409, 'this url is already registered');
     }
 
     const secret = `whsec_${randomBytes(24).toString('hex')}`;
+    // Store what was validated, not what was typed. The guard parsed the URL
+    // and the worker delivers to whatever this column holds, so keeping the raw
+    // string would leave the vetted value and the used value as two strings
+    // that merely happen to agree today.
+    const url = parsed.href;
     const inserted = await db
         .insert(dbSchema.webhookEndpoints)
-        .values({ merchant, url: body.url, secret })
+        .values({ merchant, url, secret })
         .returning({ id: dbSchema.webhookEndpoints.id });
     // The secret is shown once; store it now to verify signatures.
-    return json({ id: inserted[0]?.id, url: body.url, secret }, { status: 201 });
+    return json({ id: inserted[0]?.id, url, secret }, { status: 201 });
 });
 
 /** DELETE ?id= -> deactivates an endpoint owned by the merchant. */

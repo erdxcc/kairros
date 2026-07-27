@@ -42,7 +42,7 @@ export async function ensurePlanRow(db: KairosDb, rpc: Rpc, planPda: Address): P
         .limit(1);
     if (existing.length > 0 && existing[0]?.status !== 'unresolved') return;
 
-    const account = await withRetry(() => fetchMaybePlan(rpc, planPda));
+    const account = await withRetry(() => fetchMaybePlan(rpc, planPda), { retryTransport: true });
     if (!account.exists) {
         // The account did not come back. It may genuinely be gone (plans can be
         // closed after expiry) or the node may simply be behind the transaction

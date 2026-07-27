@@ -121,14 +121,22 @@ export interface Charge {
     createdAt: string;
 }
 
+/** A base-unit total that only means something alongside the mint it is in. */
+export interface MintAmount {
+    mint: string;
+    amount: string;
+}
+
 export interface Metrics {
-    mrr: string;
-    mints: string[];
+    /** Per mint: base units are not comparable across mints, so they are not summed. */
+    mrrByMint: MintAmount[];
     activeSubscribers: number;
     canceledLast30d: number;
     churnRate: number;
-    revenueLast30d: string;
+    revenueLast30dByMint: MintAmount[];
+    /** Daily succeeded charges for `revenueSeriesMint` alone. */
     revenueSeries: Array<{ day: string; amount: string }>;
+    revenueSeriesMint: string | null;
 }
 
 export interface WebhookEndpoint {

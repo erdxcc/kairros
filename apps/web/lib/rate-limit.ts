@@ -77,12 +77,24 @@ export function resetRateLimits(): void {
  * `x-forwarded-for` is only meaningful behind a proxy that sets it; a client
  * can otherwise send whatever it likes. Set TRUSTED_PROXY=1 when the app runs
  * behind one (Vercel, a load balancer, nginx) — the leftmost entry is then the
- * real client. Without it the header is ignored, which degrades the limiter to
- * a global one rather than letting a forged header hand out fresh quota per
- * request.
+ * real client.
+ *
+ * Without it every caller shares one bucket, and that is not merely a weaker
+ * limit: it is a denial of service with the limiter as the weapon. One client
+ * spending the 30/min ceiling locks every other wallet out of signing in. The
+ * two ways to be wrong are not symmetric — trusting a forged header hands out
+ * fresh quota per request, ignoring a real one bars everybody — so production
+ * is made to say which it is rather than defaulting into either. Locally the
+ * global bucket stays the default, where one client is the only client.
  */
 export function clientKey(req: Request): string {
-    if (process.env.TRUSTED_PROXY === '1') {
+    const trustedProxy = process.env.TRUSTED_PROXY;
+    if (trustedProxy !== '1' && trustedProxy !== '0' && process.env.NODE_ENV === 'production') {
+        throw new Error(
+            'TRUSTED_PROXY must be set to 1 or 0 in production. 1 means this app runs behind a proxy that sets x-forwarded-for, and the auth rate limiter keys on the real client IP. 0 means it does not, and the limiter is deliberately one global bucket — which lets a single caller exhaust the sign-in quota for everyone, so it has to be a choice rather than a default.',
+        );
+    }
+    if (trustedProxy === '1') {
         const forwarded = req.headers.get('x-forwarded-for');
         const first = forwarded?.split(',')[0]?.trim();
         if (first) return first;

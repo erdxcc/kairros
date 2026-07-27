@@ -53,6 +53,15 @@ export function signPayload(secret: string, timestampSec: number, body: string):
  * rows rather than the same ones: `webhook_deliveries` has a unique index that
  * would swallow the duplicates anyway, but doing the work twice to throw half
  * of it away is not a plan.
+ *
+ * Events for an `unresolved` plan are excluded by the pick itself rather than
+ * skipped after it. They cannot be routed yet (the placeholder row has no
+ * owner), and they are the *oldest* unprocessed rows, so selecting them only to
+ * pass over them parks them at the head of `order by id` forever — enough of
+ * them and every other merchant's webhooks stop moving behind a queue that
+ * looks busy. Leaving them unpicked lets the rest of the queue flow; the
+ * reconciler fills in the owner within a sweep and they become pickable, and a
+ * plan confirmed gone becomes `closed`, which routes to nobody and retires.
  */
 export async function fanOut(db: KairosDb): Promise<number> {
     // One transaction around the whole batch: `skip locked` only holds its
@@ -61,12 +70,17 @@ export async function fanOut(db: KairosDb): Promise<number> {
     // work, so the transaction is short by construction.
     return await db.transaction(async (tx) => {
         const picked = (await tx.execute(sql`
-            select id, event_type as "eventType", payload
-            from ${dbSchema.outbox}
-            where processed_at is null
-            order by id
+            select o.id, o.event_type as "eventType", o.payload
+            from ${dbSchema.outbox} o
+            where o.processed_at is null
+              and not exists (
+                  select 1 from ${dbSchema.plans} p
+                  where p.plan_pda = o.payload->>'plan'
+                    and p.status = 'unresolved'
+              )
+            order by o.id
             limit ${FANOUT_BATCH}
-            for update skip locked
+            for update of o skip locked
         `)) as unknown as {
             rows: Array<{ id: number; eventType: string; payload: Record<string, unknown> }>;
         };
@@ -85,10 +99,8 @@ export async function fanOut(db: KairosDb): Promise<number> {
                     .where(eq(dbSchema.plans.planPda, planPda))
                     .limit(1);
                 const plan = owners[0];
-                // An `unresolved` plan has no owner yet, only a placeholder.
-                // Marking the event processed now would route it to nobody and
-                // then never revisit it, so leave it for a later cycle: the
-                // reconciler fills the real owner in within one sweep.
+                // Belt and braces: the pick above already excludes these, but a
+                // plan can turn `unresolved` between the two statements.
                 if (plan?.status === 'unresolved') continue;
                 if (plan?.owner) {
                     endpoints = await tx

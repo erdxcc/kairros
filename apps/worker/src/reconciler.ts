@@ -62,11 +62,13 @@ async function reconcilePlans(opts: ReconcilerOptions): Promise<number> {
     let fixes = 0;
 
     for (const batch of chunk(rows, BATCH)) {
-        const accounts = await withRetry(() =>
-            fetchAllMaybePlan(
-                opts.rpc,
-                batch.map((r) => address(r.planPda)),
-            ),
+        const accounts = await withRetry(
+            () =>
+                fetchAllMaybePlan(
+                    opts.rpc,
+                    batch.map((r) => address(r.planPda)),
+                ),
+            { retryTransport: true },
         );
         for (const account of accounts) {
             const row = batch.find((r) => r.planPda === account.address);
@@ -141,11 +143,13 @@ async function reconcileSubscriptions(opts: ReconcilerOptions): Promise<number> 
     let fixes = 0;
 
     for (const batch of chunk(rows, BATCH)) {
-        const accounts = await withRetry(() =>
-            fetchAllMaybeSubscriptionDelegation(
-                opts.rpc,
-                batch.map((r) => address(r.subscriptionPda)),
-            ),
+        const accounts = await withRetry(
+            () =>
+                fetchAllMaybeSubscriptionDelegation(
+                    opts.rpc,
+                    batch.map((r) => address(r.subscriptionPda)),
+                ),
+            { retryTransport: true },
         );
         for (const account of accounts) {
             if (!account.exists) {
@@ -192,7 +196,7 @@ async function reconcileSubscriptions(opts: ReconcilerOptions): Promise<number> 
     return fixes;
 }
 
-/** How many rows are still waiting behind this sweep's limit. */
+/** How many rows a sweep has to cover in total, to compare against its limit. */
 async function pendingCount(
     db: KairosDb,
     table: typeof dbSchema.plans | typeof dbSchema.subscriptions,

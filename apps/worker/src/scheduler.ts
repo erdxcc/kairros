@@ -76,8 +76,28 @@ async function findCandidates(opts: SchedulerOptions, pullerAddress: string): Pr
                 // Cheap pre-filter on projections; the chain recheck decides.
                 sql`(${dbSchema.subscriptions.amountPulledInPeriod} = 0
                      or ${dbSchema.subscriptions.currentPeriodStartTs} + ${dbSchema.plans.periodHours} * 3600 <= ${now})`,
+                // Drop what this cycle would only re-skip. `alreadyFailedThisPeriod`
+                // rejects these too, but it runs in JS *after* the LIMIT has been
+                // applied, so without this filter a handful of permanently stuck
+                // subscriptions (a missing receiver ATA, say) fill every batch and
+                // starve the chargeable ones indefinitely. Both periods the chain
+                // recheck could settle on are covered: the current one for a first
+                // charge, the next one for a renewal.
+                sql`not exists (
+                    select 1 from ${dbSchema.charges} c
+                    where c.subscription_pda = ${dbSchema.subscriptions.subscriptionPda}
+                      and c.status = 'failed'
+                      and c.period_start_ts in (
+                          ${dbSchema.subscriptions.currentPeriodStartTs},
+                          ${dbSchema.subscriptions.currentPeriodStartTs} + ${dbSchema.plans.periodHours} * 3600
+                      )
+                )`,
             ),
         )
+        // Most overdue first, and deterministic. Without an ORDER BY the LIMIT
+        // takes whatever order Postgres happens to return — stable enough, in
+        // practice, to hand back the same rows every single cycle.
+        .orderBy(dbSchema.subscriptions.currentPeriodStartTs, dbSchema.subscriptions.subscriptionPda)
         .limit(opts.batchSize);
     return rows as Candidate[];
 }
@@ -118,8 +138,9 @@ async function chargeLanded(
     periodStart: bigint,
 ): Promise<boolean> {
     await sleep(2000);
-    const onChain = await withRetry(() =>
-        fetchMaybeSubscriptionDelegation(opts.rpc, address(candidate.subscriptionPda)),
+    const onChain = await withRetry(
+        () => fetchMaybeSubscriptionDelegation(opts.rpc, address(candidate.subscriptionPda)),
+        { retryTransport: true },
     );
     // Gone entirely: revoked rather than charged, so this was a real failure.
     if (!onChain.exists) return false;
@@ -182,8 +203,9 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
         let periodEnd = 0n;
         try {
             // Recheck against the chain: projections may lag the indexer.
-            const onChain = await withRetry(() =>
-                fetchMaybeSubscriptionDelegation(opts.rpc, address(candidate.subscriptionPda)),
+            const onChain = await withRetry(
+                () => fetchMaybeSubscriptionDelegation(opts.rpc, address(candidate.subscriptionPda)),
+                { retryTransport: true },
             );
             if (!onChain.exists) continue; // revoked; reconciler will sync the row
             const sub = onChain.data;
@@ -215,8 +237,9 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
                 mint: address(candidate.mint),
                 tokenProgram: TOKEN_PROGRAM_ADDRESS,
             });
-            const { value: ataInfo } = await withRetry(() =>
-                opts.rpc.getAccountInfo(receiverAta, { encoding: 'base64' }).send(),
+            const { value: ataInfo } = await withRetry(
+                () => opts.rpc.getAccountInfo(receiverAta, { encoding: 'base64' }).send(),
+                { retryTransport: true },
             );
             if (!ataInfo) {
                 console.warn(`[scheduler] receiver ATA missing for plan ${candidate.planPda}`);
@@ -232,6 +255,12 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
                 continue;
             }
 
+            // Deliberately no `retryTransport` here, unlike every read above:
+            // this is the send. A dropped socket does not tell us whether the
+            // transaction landed, so retrying could submit it twice. The
+            // on-chain per-period cap would reject the duplicate, but the
+            // honest answer to "did it land?" is the chain's, and `chargeLanded`
+            // below is the one that asks.
             const result = await withRetry(() =>
                 pullerClient.subscriptions.instructions
                     .transferSubscription({
@@ -256,6 +285,21 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
             if (kind === 'already_charged' || kind === 'not_due') {
                 continue; // benign race with another puller or clock skew
             }
+            // `periodStart` is still zero only when we failed before the chain
+            // read came back, i.e. we never learned what we would have charged.
+            // That is a failure to *check*, not a charge that failed. Recording
+            // one would invent a `charge.failed` the merchant has to explain to
+            // a customer and drop a periodStartTs=0 row into the payer's own
+            // history — and an RPC outage would do it once per cycle, per
+            // subscription. Nothing was submitted, so the next cycle simply
+            // starts over.
+            if (periodStart === 0n) {
+                console.warn(
+                    `[scheduler] could not evaluate ${candidate.subscriptionPda.slice(0, 12)}… ` +
+                        `(${message.slice(0, 200)}); retrying next cycle`,
+                );
+                continue;
+            }
             // An unclassified error is the ambiguous one: a transaction whose
             // confirmation timed out may still have landed. Recording a
             // failure for a charge that actually succeeded would emit a false
@@ -263,7 +307,7 @@ export async function scheduleOnce(opts: SchedulerOptions): Promise<{ charged: n
             // period, so ask the chain before believing the exception. Errors
             // we *did* classify came from preflight, where nothing was ever
             // submitted, and need no second look.
-            if (kind === 'unknown' && periodStart !== 0n) {
+            if (kind === 'unknown') {
                 const landed = await chargeLanded(opts, candidate, periodStart).catch(() => false);
                 if (landed) {
                     console.warn(

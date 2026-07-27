@@ -35,7 +35,9 @@ interface FixtureTransaction {
 }
 
 async function signaturesFor(addr: Address): Promise<string[]> {
-    const result = await withRetry(() => rpc.getSignaturesForAddress(addr, { limit: 30 }).send(), 6);
+    const result = await withRetry(() => rpc.getSignaturesForAddress(addr, { limit: 30 }).send(), {
+        attempts: 6,
+    });
     return result.filter((entry) => entry.err === null).map((entry) => entry.signature as string);
 }
 
@@ -64,7 +66,7 @@ async function main() {
                         maxSupportedTransactionVersion: 0,
                     })
                     .send(),
-            6,
+            { attempts: 6 },
         );
         if (!tx) continue;
 

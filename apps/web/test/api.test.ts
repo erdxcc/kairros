@@ -412,20 +412,58 @@ describe('metrics', () => {
     it('computes MRR, active subscribers, churn, and revenue for the merchant', async () => {
         const m = await getMetrics(db, merchantA);
         // 2 active subs * 5 tokens, monthly period -> MRR == 10_000_000 base units
-        expect(m.mrr).toBe('10000000');
+        expect(m.mrrByMint).toEqual([{ mint: 'mintX', amount: '10000000' }]);
         expect(m.activeSubscribers).toBe(2);
         expect(m.canceledLast30d).toBe(1);
         // churn = 1 / (2 + 1)
         expect(m.churnRate).toBeCloseTo(1 / 3, 5);
-        expect(m.revenueLast30d).toBe('5000000');
-        expect(m.mints).toEqual(['mintX']);
+        expect(m.revenueLast30dByMint).toEqual([{ mint: 'mintX', amount: '5000000' }]);
+        expect(m.revenueSeriesMint).toBe('mintX');
         expect(m.revenueSeries.length).toBeGreaterThanOrEqual(1);
     });
 
     it('is isolated per merchant', async () => {
         const m = await getMetrics(db, merchantB);
-        expect(m.mrr).toBe('9000000');
+        expect(m.mrrByMint).toEqual([{ mint: 'mintX', amount: '9000000' }]);
         expect(m.activeSubscribers).toBe(1);
-        expect(m.revenueLast30d).toBe('9000000');
+        expect(m.revenueLast30dByMint).toEqual([{ mint: 'mintX', amount: '9000000' }]);
+    });
+
+    it('keeps mints apart instead of adding base units that are not comparable', async () => {
+        // A second mint under the same merchant. Summing the two would produce
+        // one number that describes neither.
+        await db.insert(dbSchema.plans).values({
+            planPda: 'planA-euro',
+            owner: merchantA,
+            planId: '77',
+            mint: 'mintEURC',
+            amount: '2000000',
+            periodHours: 730n,
+            status: 'active',
+            endTs: 0n,
+            destinations: [],
+            pullers: [],
+            metadataUri: '',
+            createdAtChain: 0n,
+        });
+        await db.insert(dbSchema.subscriptions).values({
+            subscriptionPda: 'subA-euro',
+            planPda: 'planA-euro',
+            subscriber: 'userA9',
+            mint: 'mintEURC',
+            status: 'active',
+            createdTs: 0n,
+            currentPeriodStartTs: 0n,
+            amountPulledInPeriod: '0',
+        });
+
+        const m = await getMetrics(db, merchantA);
+        expect(m.mrrByMint).toEqual([
+            { mint: 'mintEURC', amount: '2000000' },
+            { mint: 'mintX', amount: '10000000' },
+        ]);
+        expect(m.activeSubscribers).toBe(3);
+        // No revenue in the new mint, so the chart still follows the one that moved.
+        expect(m.revenueSeriesMint).toBe('mintX');
     });
 });

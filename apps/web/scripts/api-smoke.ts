@@ -108,11 +108,13 @@ async function main() {
     const m = metricsRes.metrics;
     check(
         'GET /metrics -> shape',
-        m && typeof m.mrr === 'string' && typeof m.activeSubscribers === 'number',
+        m && Array.isArray(m.mrrByMint) && typeof m.activeSubscribers === 'number',
         m,
     );
+    const perMint = (rows: Array<{ mint: string; amount: string }> | undefined) =>
+        rows?.length ? rows.map((r) => `${r.amount} ${r.mint.slice(0, 6)}…`).join(' + ') : 'none';
     console.log(
-        `   MRR=${m?.mrr} active=${m?.activeSubscribers} churn=${m?.churnRate?.toFixed?.(3)} rev30d=${m?.revenueLast30d}`,
+        `   MRR=${perMint(m?.mrrByMint)} active=${m?.activeSubscribers} churn=${m?.churnRate?.toFixed?.(3)} rev30d=${perMint(m?.revenueLast30dByMint)}`,
     );
 
     // Webhook endpoint lifecycle.

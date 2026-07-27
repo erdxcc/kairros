@@ -21,11 +21,17 @@ export function tooManyRequests(retryAfterSeconds: number): NextResponse {
     );
 }
 
-/** Wraps a handler so thrown errors become clean 500s instead of HTML pages. */
-export function handler(fn: (req: Request) => Promise<NextResponse>) {
-    return async (req: Request): Promise<NextResponse> => {
+/**
+ * Wraps a handler so thrown errors become clean 500s instead of HTML pages.
+ *
+ * The route context is passed straight through, so a dynamic segment can read
+ * `ctx.params` instead of picking the value back out of the URL. Handlers that
+ * do not need it declare one parameter and ignore the rest.
+ */
+export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<NextResponse>) {
+    return async (req: Request, ctx: Ctx): Promise<NextResponse> => {
         try {
-            return await fn(req);
+            return await fn(req, ctx);
         } catch (err) {
             console.error('[api] unhandled error:', err);
             return error(500, 'internal error');

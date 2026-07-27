@@ -15,17 +15,44 @@ import {
     Th,
     Tr,
 } from '@/components/ui';
-import { useCharges, useMetrics } from '@/lib/api';
+import { type MintAmount, useCharges, useMetrics } from '@/lib/api';
 import { formatAmount, formatPercent, relativeTime, short } from '@/lib/format';
 import Link from 'next/link';
+
+/**
+ * Renders a per-mint total. One mint reads exactly as a single figure always
+ * did; several are stacked and labelled rather than added together, because a
+ * sum across mints with different decimals is not a smaller truth, it is a
+ * number that means nothing.
+ */
+function MintTotals({ rows }: { rows: MintAmount[] | undefined }) {
+    if (!rows || rows.length === 0) return <>—</>;
+    const [only] = rows;
+    if (rows.length === 1 && only) return <>{formatAmount(only.amount)}</>;
+    return (
+        <span className="flex flex-col gap-0.5">
+            {rows.map((row) => (
+                <span key={row.mint} className="flex items-baseline gap-2">
+                    <span>{formatAmount(row.amount)}</span>
+                    <span className="font-normal font-sans text-faint text-xs">{short(row.mint)}</span>
+                </span>
+            ))}
+        </span>
+    );
+}
+
+function mintSub(rows: MintAmount[] | undefined): string {
+    if (!rows || rows.length === 0) return '—';
+    const [only] = rows;
+    if (rows.length === 1 && only) return short(only.mint);
+    return `${rows.length} tokens, kept separate`;
+}
 
 export default function OverviewPage() {
     const metrics = useMetrics();
     const charges = useCharges(6);
 
     const m = metrics.data;
-    const mintLabel =
-        m && m.mints.length > 1 ? `across ${m.mints.length} tokens` : m?.mints[0] ? short(m.mints[0]) : '—';
 
     return (
         <div className="space-y-6">
@@ -45,8 +72,8 @@ export default function OverviewPage() {
                     <StatCard
                         label="MRR"
                         loading={metrics.isLoading}
-                        value={m ? formatAmount(m.mrr) : '—'}
-                        sub={mintLabel}
+                        value={<MintTotals rows={m?.mrrByMint} />}
+                        sub={mintSub(m?.mrrByMint)}
                     />
                     <StatCard
                         label="Active subscribers"
@@ -63,14 +90,23 @@ export default function OverviewPage() {
                     <StatCard
                         label="Revenue · 30d"
                         loading={metrics.isLoading}
-                        value={m ? formatAmount(m.revenueLast30d) : '—'}
-                        sub={mintLabel}
+                        value={<MintTotals rows={m?.revenueLast30dByMint} />}
+                        sub={mintSub(m?.revenueLast30dByMint)}
                     />
                 </div>
             )}
 
             <Card>
-                <CardHeader title="Revenue" description="Successful charges, last 30 days" />
+                <CardHeader
+                    title="Revenue"
+                    description={
+                        // Naming the mint matters once there is more than one:
+                        // the line is that mint's charges, not every mint's.
+                        m?.revenueSeriesMint
+                            ? `Successful charges in ${short(m.revenueSeriesMint)}, last 30 days`
+                            : 'Successful charges, last 30 days'
+                    }
+                />
                 {metrics.isLoading ? (
                     <div className="p-5">
                         <Skeleton className="h-44 w-full" />

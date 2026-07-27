@@ -228,14 +228,35 @@ export async function getMySummary(
     };
 }
 
+/** A base-unit total that only means something alongside the mint it is in. */
+export interface MintAmount {
+    mint: string;
+    amount: string;
+}
+
 export interface Metrics {
-    mrr: string; // base units, summed across active subscriptions (valid for a single mint)
-    mints: string[]; // distinct mints among active subscriptions
+    /**
+     * Monthly recurring revenue, per mint.
+     *
+     * Per mint rather than one number because base units are not comparable
+     * across mints: adding a 6-decimal USDC amount to a 9-decimal one produces
+     * a figure that is not wrong by a little, it is meaningless. A merchant
+     * billing in one mint — nearly all of them — gets a single-entry array.
+     */
+    mrrByMint: MintAmount[];
     activeSubscribers: number;
     canceledLast30d: number;
     churnRate: number; // canceled / (active + canceled)
-    revenueLast30d: string; // base units of succeeded charges in the last 30 days
-    revenueSeries: Array<{ day: string; amount: string }>; // last 30 days, succeeded charges
+    /** Succeeded charges in the last 30 days, per mint, for the same reason. */
+    revenueLast30dByMint: MintAmount[];
+    /**
+     * Daily succeeded charges over the last 30 days, for `revenueSeriesMint`
+     * alone. The chart plots one line, so the series has to be one mint's;
+     * summing them would draw a line that measures nothing.
+     */
+    revenueSeries: Array<{ day: string; amount: string }>;
+    /** Which mint `revenueSeries` covers — the largest by 30-day revenue. */
+    revenueSeriesMint: string | null;
 }
 
 /** The driver-agnostic KairosDb type erases row typing on raw execute(). */
@@ -247,16 +268,19 @@ async function rows<T>(db: KairosDb, query: ReturnType<typeof sql>): Promise<T[]
 export async function getMetrics(db: KairosDb, merchant: string): Promise<Metrics> {
     const since30d = BigInt(Math.floor(Date.now() / 1000) - 30 * 24 * 3600);
 
-    const activeRows = await rows<{ mrr: string; active_subscribers: number; mints: string[] }>(
+    // Grouped by mint, and the subscriber count comes along rather than costing
+    // a second round trip: the totals are per mint, the headcount is not.
+    const activeRows = await rows<{ mint: string; amount: string; subscribers: number }>(
         db,
         sql`
         select
-            round(coalesce(sum((p.amount * ${MONTH_HOURS}) / nullif(p.period_hours, 0)), 0))::text as mrr,
-            count(*)::int as active_subscribers,
-            coalesce(array_agg(distinct s.mint), '{}') as mints
+            s.mint as mint,
+            round(coalesce(sum((p.amount * ${MONTH_HOURS}) / nullif(p.period_hours, 0)), 0))::text as amount,
+            count(*)::int as subscribers
         from ${dbSchema.subscriptions} s
         join ${dbSchema.plans} p on s.plan_pda = p.plan_pda
         where p.owner = ${merchant} and s.status = 'active'
+        group by s.mint order by s.mint
     `,
     );
 
@@ -271,42 +295,56 @@ export async function getMetrics(db: KairosDb, merchant: string): Promise<Metric
     `,
     );
 
-    const revenueRows = await rows<{ revenue_30d: string }>(
+    const revenueRows = await rows<{ mint: string; amount: string }>(
         db,
         sql`
-        select coalesce(sum(c.amount), 0)::text as revenue_30d
+        select c.mint as mint, coalesce(sum(c.amount), 0)::text as amount
         from ${dbSchema.charges} c
         join ${dbSchema.plans} p on c.plan_pda = p.plan_pda
         where p.owner = ${merchant} and c.status = 'succeeded'
           and c.executed_at is not null and c.executed_at >= ${since30d}
+        group by c.mint order by c.mint
     `,
     );
 
-    const seriesRows = await rows<{ day: string; amount: string }>(
-        db,
-        sql`
+    const mrrByMint = activeRows.map((r) => ({ mint: r.mint, amount: r.amount ?? '0' }));
+    const revenueLast30dByMint = revenueRows.map((r) => ({ mint: r.mint, amount: r.amount ?? '0' }));
+
+    // The chart is a single line, so it gets a single mint: the one the most
+    // money actually moved in. Compared as bigint because these are u64 base
+    // units and Number would start lying somewhere past 2^53.
+    const primary = revenueLast30dByMint.reduce<MintAmount | null>((best, row) => {
+        if (!best) return row;
+        return BigInt(row.amount) > BigInt(best.amount) ? row : best;
+    }, null);
+
+    const seriesRows = primary
+        ? await rows<{ day: string; amount: string }>(
+              db,
+              sql`
         select to_char(to_timestamp(c.executed_at), 'YYYY-MM-DD') as day,
                coalesce(sum(c.amount), 0)::text as amount
         from ${dbSchema.charges} c
         join ${dbSchema.plans} p on c.plan_pda = p.plan_pda
         where p.owner = ${merchant} and c.status = 'succeeded'
           and c.executed_at is not null and c.executed_at >= ${since30d}
+          and c.mint = ${primary.mint}
         group by day order by day
     `,
-    );
+          )
+        : [];
 
-    const activeRow = activeRows[0] ?? { mrr: '0', active_subscribers: 0, mints: [] };
     const canceledCount = canceledRows[0]?.canceled_30d ?? 0;
-    const activeCount = activeRow.active_subscribers;
+    const activeCount = activeRows.reduce((total, r) => total + r.subscribers, 0);
     const churnDenom = activeCount + canceledCount;
 
     return {
-        mrr: activeRow.mrr ?? '0',
-        mints: (activeRow.mints ?? []).filter(Boolean),
+        mrrByMint,
         activeSubscribers: activeCount,
         canceledLast30d: canceledCount,
         churnRate: churnDenom === 0 ? 0 : canceledCount / churnDenom,
-        revenueLast30d: revenueRows[0]?.revenue_30d ?? '0',
+        revenueLast30dByMint,
         revenueSeries: seriesRows.map((r) => ({ day: r.day, amount: r.amount })),
+        revenueSeriesMint: primary?.mint ?? null,
     };
 }
